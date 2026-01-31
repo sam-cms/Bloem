@@ -30,6 +30,7 @@ import { applyHookMappings } from "./hooks-mapping.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
+import { handlePrebloomHttpRequest } from "../prebloom/api/index.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 
@@ -247,6 +248,7 @@ export function createGatewayHttpServer(opts: {
       )
         return;
       if (await handleSlackHttpRequest(req, res)) return;
+      if (await handlePrebloomHttpRequest(req, res)) return;
       if (handlePluginRequest && (await handlePluginRequest(req, res))) return;
       if (openResponsesEnabled) {
         if (
