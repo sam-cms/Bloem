@@ -1,0 +1,50 @@
+version: "3.8"
+
+# Prebloom Docker Compose
+# 
+# Usage:
+#   docker compose -f docker-compose.prebloom.yml up --build
+#
+# Environment variables (create .env file):
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   CLAWDBOT_GATEWAY_TOKEN=your-secret-token
+
+services:
+  prebloom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      HOME: /home/node
+      NODE_ENV: production
+      # API Keys
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Gateway config
+      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN:-prebloom-dev-token}
+      CLAWDBOT_GATEWAY_BIND: lan
+    ports:
+      - "${PREBLOOM_PORT:-3001}:3001"
+    volumes:
+      # Persist config and state
+      - prebloom-config:/home/node/.clawdbot
+    init: true
+    restart: unless-stopped
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--bind",
+        "lan",
+        "--port",
+        "3001"
+      ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/prebloom/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  prebloom-config:
