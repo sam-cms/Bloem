@@ -49,6 +49,8 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const longPressTimerRef = useRef<number | null>(null)
+  const isSpaceHeldRef = useRef(false)
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -123,10 +125,58 @@ export default function App() {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       handleSubmit(e)
     }
-    // Shift+Enter to toggle voice recording
-    if (e.key === 'Enter' && e.shiftKey) {
+    
+    // Hold spacebar to record (only when empty or cursor at end)
+    if (e.key === ' ' && !e.repeat && recordingState === 'idle') {
+      const textarea = textareaRef.current
+      if (textarea) {
+        const isAtEnd = textarea.selectionStart === idea.length
+        const isEmpty = idea.length === 0
+        if (isEmpty || isAtEnd) {
+          e.preventDefault()
+          isSpaceHeldRef.current = true
+          startRecording()
+        }
+      }
+    }
+  }
+
+  const handleKeyUp = (e: React.KeyboardEvent) => {
+    // Release spacebar to stop recording
+    if (e.key === ' ' && isSpaceHeldRef.current && recordingState === 'recording') {
       e.preventDefault()
-      toggleRecording()
+      isSpaceHeldRef.current = false
+      stopRecording()
+    }
+  }
+
+  // Long-press to record (500ms)
+  const handleMouseDown = () => {
+    if (recordingState !== 'idle') return
+    
+    longPressTimerRef.current = window.setTimeout(() => {
+      startRecording()
+    }, 500)
+  }
+
+  const handleMouseUp = () => {
+    // Clear long-press timer if not yet triggered
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    
+    // Stop recording if we were recording via long-press
+    if (recordingState === 'recording' && !isSpaceHeldRef.current) {
+      stopRecording()
+    }
+  }
+
+  const handleMouseLeave = () => {
+    // Clear timer if mouse leaves textarea
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
     }
   }
 
@@ -246,10 +296,20 @@ export default function App() {
                     value={idea}
                     onChange={e => setIdea(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    onTouchStart={handleMouseDown}
+                    onTouchEnd={handleMouseUp}
                     placeholder="I'm building an AI-powered tool that helps photographers get brutally honest feedback on their work before submitting to galleries..."
                     rows={6}
-                    disabled={recordingState !== 'idle'}
-                    className="w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border border-[var(--border)] text-white placeholder-[var(--fg-subtle)] focus:border-[var(--accent-muted)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50"
+                    disabled={recordingState === 'transcribing'}
+                    className={`w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border text-white placeholder-[var(--fg-subtle)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 ${
+                      recordingState === 'recording' 
+                        ? 'border-red-500 bg-red-500/5' 
+                        : 'border-[var(--border)] focus:border-[var(--accent-muted)]'
+                    }`}
                   />
                   
                   {/* Mic Button */}
@@ -287,10 +347,10 @@ export default function App() {
                 <div className="mt-6 flex items-center justify-between">
                   <p className="text-[var(--fg-subtle)] text-xs">
                     {recordingState === 'recording' 
-                      ? '🔴 Recording... press Shift+Enter or click mic to stop'
+                      ? '🔴 Recording... release to stop'
                       : recordingState === 'transcribing'
                       ? '⏳ Transcribing audio...'
-                      : 'Shift+Enter to talk'
+                      : 'Hold space or long-press to talk'
                     }
                   </p>
                   <button
