@@ -381,13 +381,20 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <p className="text-[var(--fg-subtle)] text-xs">
-                    {recordingState === 'recording' 
-                      ? '🔴 Recording... tap space to stop'
-                      : recordingState === 'transcribing'
-                      ? '⏳ Transcribing audio...'
-                      : 'Long-press space or hold click to talk'
-                    }
+                  <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
+                    {recordingState === 'recording' ? (
+                      <>
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        <span>Recording... tap space to stop</span>
+                      </>
+                    ) : recordingState === 'transcribing' ? (
+                      <>
+                        <span className="spinner-small" />
+                        <span>Transcribing audio...</span>
+                      </>
+                    ) : (
+                      'Long-press space or hold click to talk'
+                    )}
                   </p>
                   <button
                     type="submit"
