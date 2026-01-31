@@ -299,8 +299,8 @@ export default function App() {
       <div className="light-leak light-leak-green w-[500px] h-[500px] -top-32 -right-32 fixed opacity-30" />
       
       <header className="px-6 py-6 border-b border-[var(--border)]">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
+        <div className="max-w-4xl mx-auto flex items-center gap-2">
+          <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-6 h-6 object-contain" />
           <span className="label">Prebloom</span>
         </div>
       </header>
@@ -484,7 +484,7 @@ function ReportContainer({
       <header className="sticky top-0 z-10 px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-primary)]/95 backdrop-blur">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
+            <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-6 h-6 object-contain" />
             <span className="label">Prebloom</span>
           </div>
 
