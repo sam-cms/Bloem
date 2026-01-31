@@ -50,7 +50,8 @@ export default function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const longPressTimerRef = useRef<number | null>(null)
-  const isSpaceHeldRef = useRef(false)
+  const spacebarTimerRef = useRef<number | null>(null)
+  const [blockSpacebar, setBlockSpacebar] = useState(false)
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -126,27 +127,47 @@ export default function App() {
       handleSubmit(e)
     }
     
-    // Hold spacebar to record (only when empty or cursor at end)
-    if (e.key === ' ' && !e.repeat && recordingState === 'idle') {
+    // Unblock spacebar when any other key is pressed
+    if (e.key !== ' ' && blockSpacebar) {
+      setBlockSpacebar(false)
+    }
+    
+    // Block spacebar input if flag is set
+    if (e.key === ' ' && blockSpacebar) {
+      e.preventDefault()
+      return
+    }
+    
+    // Spacebar: long-press to start, short tap to stop
+    if (e.key === ' ' && !e.repeat) {
       const textarea = textareaRef.current
-      if (textarea) {
-        const isAtEnd = textarea.selectionStart === idea.length
-        const isEmpty = idea.length === 0
-        if (isEmpty || isAtEnd) {
-          e.preventDefault()
-          isSpaceHeldRef.current = true
+      const isAtEnd = textarea ? textarea.selectionStart === idea.length : false
+      const isEmpty = idea.length === 0
+      
+      // If recording, short tap stops it
+      if (recordingState === 'recording') {
+        e.preventDefault()
+        stopRecording()
+        setBlockSpacebar(true) // Block spacebar until another key is pressed
+        return
+      }
+      
+      // If idle and at end/empty, start long-press timer
+      if (recordingState === 'idle' && (isEmpty || isAtEnd)) {
+        e.preventDefault()
+        spacebarTimerRef.current = window.setTimeout(() => {
           startRecording()
-        }
+          spacebarTimerRef.current = null
+        }, 500)
       }
     }
   }
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
-    // Release spacebar to stop recording
-    if (e.key === ' ' && isSpaceHeldRef.current && recordingState === 'recording') {
-      e.preventDefault()
-      isSpaceHeldRef.current = false
-      stopRecording()
+    // Clear spacebar timer if released before 500ms
+    if (e.key === ' ' && spacebarTimerRef.current) {
+      clearTimeout(spacebarTimerRef.current)
+      spacebarTimerRef.current = null
     }
   }
 
@@ -347,10 +368,10 @@ export default function App() {
                 <div className="mt-6 flex items-center justify-between">
                   <p className="text-[var(--fg-subtle)] text-xs">
                     {recordingState === 'recording' 
-                      ? '🔴 Recording... release to stop'
+                      ? '🔴 Recording... tap space to stop'
                       : recordingState === 'transcribing'
                       ? '⏳ Transcribing audio...'
-                      : 'Hold space or long-press to talk'
+                      : 'Long-press space or hold click to talk'
                     }
                   </p>
                   <button
