@@ -60,6 +60,54 @@ export default function App() {
     }
   }, [idea])
 
+  // Global spacebar listener for voice recording
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only handle spacebar
+      if (e.key !== ' ' || e.repeat) return
+      
+      // Don't interfere if user is in the middle of typing (not at end)
+      const textarea = textareaRef.current
+      if (textarea && document.activeElement === textarea) {
+        const isAtEnd = textarea.selectionStart === idea.length
+        const isEmpty = idea.length === 0
+        if (!isEmpty && !isAtEnd) return // Let normal typing happen
+      }
+      
+      // If recording, tap to stop
+      if (recordingState === 'recording') {
+        e.preventDefault()
+        stopRecording()
+        setBlockSpacebar(true)
+        return
+      }
+      
+      // If idle on input page, long-press to start
+      if (recordingState === 'idle' && state === 'input') {
+        e.preventDefault()
+        spacebarTimerRef.current = window.setTimeout(() => {
+          startRecording()
+          spacebarTimerRef.current = null
+        }, 500)
+      }
+    }
+
+    const handleGlobalKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && spacebarTimerRef.current) {
+        clearTimeout(spacebarTimerRef.current)
+        spacebarTimerRef.current = null
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    window.addEventListener('keyup', handleGlobalKeyUp)
+    
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+      window.removeEventListener('keyup', handleGlobalKeyUp)
+    }
+  }, [recordingState, state, idea.length])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!idea.trim()) return
@@ -132,42 +180,10 @@ export default function App() {
       setBlockSpacebar(false)
     }
     
-    // Block spacebar input if flag is set
+    // Block spacebar input in textarea if flag is set
     if (e.key === ' ' && blockSpacebar) {
       e.preventDefault()
       return
-    }
-    
-    // Spacebar: long-press to start, short tap to stop
-    if (e.key === ' ' && !e.repeat) {
-      const textarea = textareaRef.current
-      const isAtEnd = textarea ? textarea.selectionStart === idea.length : false
-      const isEmpty = idea.length === 0
-      
-      // If recording, short tap stops it
-      if (recordingState === 'recording') {
-        e.preventDefault()
-        stopRecording()
-        setBlockSpacebar(true) // Block spacebar until another key is pressed
-        return
-      }
-      
-      // If idle and at end/empty, start long-press timer
-      if (recordingState === 'idle' && (isEmpty || isAtEnd)) {
-        e.preventDefault()
-        spacebarTimerRef.current = window.setTimeout(() => {
-          startRecording()
-          spacebarTimerRef.current = null
-        }, 500)
-      }
-    }
-  }
-
-  const handleKeyUp = (e: React.KeyboardEvent) => {
-    // Clear spacebar timer if released before 500ms
-    if (e.key === ' ' && spacebarTimerRef.current) {
-      clearTimeout(spacebarTimerRef.current)
-      spacebarTimerRef.current = null
     }
   }
 
@@ -317,7 +333,6 @@ export default function App() {
                     value={idea}
                     onChange={e => setIdea(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    onKeyUp={handleKeyUp}
                     onMouseDown={handleMouseDown}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
