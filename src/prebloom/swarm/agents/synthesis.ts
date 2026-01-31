@@ -29,6 +29,14 @@ Your job is to weigh both sides and deliver THE VERDICT.
 ### Verdict: [PASS / CONDITIONAL_PASS / FAIL]
 ### Confidence: [X/10]
 
+### Dimension Scores
+Rate each dimension 1-10:
+- Problem Clarity: [X/10] — How clear and validated is the problem?
+- Market Size: [X/10] — TAM/SAM opportunity scale
+- Competition Risk: [X/10] — Defensibility (10 = strong moat, low risk)
+- Execution: [X/10] — Team's ability to build and ship
+- Business Model: [X/10] — Revenue model clarity and viability
+
 ### The Debate
 [How did you weigh Catalyst vs Fire? What tipped the scales?]
 

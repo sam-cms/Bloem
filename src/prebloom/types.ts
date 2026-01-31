@@ -20,6 +20,15 @@ export interface AgentOutput {
   highlights?: string[];
 }
 
+// Dimension scores for the scorecard
+export interface DimensionScores {
+  problemClarity: number;   // 1-10: How clear/validated is the problem?
+  marketSize: number;       // 1-10: TAM/SAM opportunity
+  competitionRisk: number;  // 1-10: Defensibility (10 = low risk, moat exists)
+  execution: number;        // 1-10: Team/founder ability to execute
+  businessModel: number;    // 1-10: Revenue model clarity & viability
+}
+
 // Final verdict structure
 export interface Verdict {
   id: string;
@@ -35,6 +44,9 @@ export interface Verdict {
   // Final verdict
   decision: "PASS" | "FAIL" | "CONDITIONAL_PASS";
   confidence: number; // 1-10
+  
+  // Dimension breakdown
+  dimensions: DimensionScores;
   
   executiveSummary: string;
   keyStrengths: string[];

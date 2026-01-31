@@ -1,18 +1,36 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 
+type DimensionScores = {
+  problemClarity: number
+  marketSize: number
+  competitionRisk: number
+  execution: number
+  businessModel: number
+}
+
 type Verdict = {
   decision: 'PASS' | 'FAIL' | 'CONDITIONAL_PASS'
   confidence: number
+  dimensions: DimensionScores
   executiveSummary: string
   keyStrengths: string[]
   keyRisks: string[]
   nextSteps: string[]
-  intake: { analysis: string }
-  catalyst: { analysis: string }
-  fire: { analysis: string }
-  synthesis: { analysis: string }
+  intake: { analysis: string; score?: number }
+  catalyst: { analysis: string; score?: number }
+  fire: { analysis: string; score?: number }
+  synthesis: { analysis: string; score?: number }
 }
+
+// Dimension display config
+const DIMENSION_CONFIG: { key: keyof DimensionScores; label: string }[] = [
+  { key: 'problemClarity', label: 'Problem Clarity' },
+  { key: 'marketSize', label: 'Market Size' },
+  { key: 'competitionRisk', label: 'Competition Risk' },
+  { key: 'execution', label: 'Execution' },
+  { key: 'businessModel', label: 'Business Model' },
+]
 
 type AppState = 'input' | 'processing' | 'report'
 type ReportView = 'tldr' | 'full'
@@ -25,7 +43,7 @@ export default function App() {
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentPhase, setCurrentPhase] = useState<string>('intake')
-  const [reportView, setReportView] = useState<ReportView>('tldr')
+  const [reportView, setReportView] = useState<ReportView>('full')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -75,7 +93,6 @@ export default function App() {
         if (pollData.status === 'completed') {
           setVerdict(pollData.verdict)
           setState('report')
-          setReportView('tldr') // Start with TL;DR view
           return
         }
         if (pollData.status === 'failed') {
@@ -233,9 +250,9 @@ function ProcessingView({ phase }: { phase: string }) {
 function ReportContainer({ 
   verdict, 
   idea, 
-  onReset, 
-  view, 
-  onViewChange 
+  onReset,
+  view,
+  onViewChange,
 }: { 
   verdict: Verdict
   idea: string
@@ -247,26 +264,14 @@ function ReportContainer({
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Top Bar */}
       <header className="sticky top-0 z-10 px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-primary)]/95 backdrop-blur">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
-              <span className="label">Prebloom</span>
-            </div>
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
+            <span className="label">Prebloom</span>
           </div>
-          
+
           {/* View Toggle */}
-          <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-1">
-            <button
-              onClick={() => onViewChange('tldr')}
-              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
-                view === 'tldr' 
-                  ? 'bg-[var(--accent)] text-black' 
-                  : 'text-[var(--fg-muted)] hover:text-white'
-              }`}
-            >
-              TL;DR
-            </button>
+          <div className="flex items-center gap-1 bg-[var(--bg-secondary)] p-1">
             <button
               onClick={() => onViewChange('full')}
               className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
@@ -276,6 +281,16 @@ function ReportContainer({
               }`}
             >
               Full Report
+            </button>
+            <button
+              onClick={() => onViewChange('tldr')}
+              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
+                view === 'tldr' 
+                  ? 'bg-[var(--accent)] text-black' 
+                  : 'text-[var(--fg-muted)] hover:text-white'
+              }`}
+            >
+              TL;DR
             </button>
           </div>
 
@@ -295,111 +310,127 @@ function ReportContainer({
 }
 
 function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => void }) {
-  const classificationConfig = {
-    PASS: { label: 'APPROVED', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.1)', emoji: '✓' },
-    CONDITIONAL_PASS: { label: 'CONDITIONAL', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)', emoji: '~' },
-    FAIL: { label: 'REJECTED', color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)', emoji: '✗' },
+  const classificationLabels = {
+    PASS: 'STRONG PASS',
+    CONDITIONAL_PASS: 'CONDITIONAL PASS',
+    FAIL: 'HARD NO',
   }
-  const config = classificationConfig[verdict.decision]
-  const confidencePercent = (verdict.confidence / 10) * 100
+
+  const dimensions = verdict.dimensions || {
+    problemClarity: 5,
+    marketSize: 5,
+    competitionRisk: 5,
+    execution: 5,
+    businessModel: 5,
+  }
+
+  const pad = (str: string, len: number) => str.padEnd(len, ' ')
+  const padStart = (str: string, len: number) => str.padStart(len, ' ')
+
+  const headerText = `${classificationLabels[verdict.decision]} ${verdict.confidence}/10`
+  const headerPadded = padStart(headerText, Math.floor((37 + headerText.length) / 2)).padEnd(37, ' ')
+
+  const renderRow = (label: string, score: number) => {
+    const filled = Math.round(score)
+    const empty = 10 - filled
+    return (
+      <span>
+        │  {pad(label, 18)} <span className="text-[var(--accent)]">{'█'.repeat(filled)}</span>
+        <span className="text-[var(--fg-subtle)]">{'░'.repeat(empty)}</span>  {padStart(String(score), 2)}  │
+      </span>
+    )
+  }
+
+  // Extract first meaningful sentence(s) from analysis
+  const extractSummary = (analysis: string, maxLen: number = 120) => {
+    const lines = analysis.split('\n').filter(l => l.trim().length > 15 && !l.startsWith('#'))
+    const text = lines.slice(0, 2).join(' ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
+    return text.length > maxLen ? text.slice(0, maxLen - 3) + '...' : text
+  }
+
+  const cleanItem = (text: string) => text.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim()
 
   return (
     <main className="max-w-2xl mx-auto px-6 py-12">
-      <div className="reveal-up">
-        {/* Hero Verdict Card */}
-        <div 
-          className="border-2 p-8 mb-8 text-center"
-          style={{ borderColor: config.color, backgroundColor: config.bg }}
+      <div className="reveal-up flex flex-col items-center">
+        {/* Scorecard Table */}
+        <pre className="font-mono text-sm md:text-base leading-relaxed select-none text-[var(--fg-muted)]">
+          <span className="block">┌───────────────────────────────────────┐</span>
+          <span className="block">│<span className="text-[var(--accent)]">{headerPadded}</span>  │</span>
+          <span className="block">│  <span className="text-[var(--border-hover)]">═══════════════════════════════════</span>  │</span>
+          <span className="block">│                                       │</span>
+          <span className="block">{renderRow('Problem Clarity', dimensions.problemClarity)}</span>
+          <span className="block">{renderRow('Market Size', dimensions.marketSize)}</span>
+          <span className="block">{renderRow('Competition Risk', dimensions.competitionRisk)}</span>
+          <span className="block">{renderRow('Execution', dimensions.execution)}</span>
+          <span className="block">{renderRow('Business Model', dimensions.businessModel)}</span>
+          <span className="block">│                                       │</span>
+          <span className="block">└───────────────────────────────────────┘</span>
+        </pre>
+
+        {/* Text Summaries Below Table */}
+        <div className="mt-8 w-full max-w-lg space-y-6 text-sm">
+          {/* BULL & BEAR */}
+          <div className="space-y-3">
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--accent)] font-medium">BULL:</span>{' '}
+              {extractSummary(verdict.catalyst?.analysis || 'Strong potential identified.', 80)}
+            </p>
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--fg-subtle)] font-medium">BEAR:</span>{' '}
+              {extractSummary(verdict.fire?.analysis || 'Key risks require attention.', 80)}
+            </p>
+          </div>
+
+          {/* Section Summaries */}
+          <div className="space-y-2 border-t border-[var(--border)] pt-4">
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--accent)] font-medium">INTAKE LAB:</span>{' '}
+              {extractSummary(verdict.intake?.analysis || 'Problem well-defined.', 80)}
+            </p>
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--accent)] font-medium">CATALYST LAB:</span>{' '}
+              {extractSummary(verdict.catalyst?.analysis || 'Opportunities identified.', 80)}
+            </p>
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--accent)] font-medium">FIRE LAB:</span>{' '}
+              {extractSummary(verdict.fire?.analysis || 'Risks assessed.', 80)}
+            </p>
+          </div>
+
+          {/* Verdict Summary */}
+          <div className="border-t border-[var(--border)] pt-4">
+            <p className="text-[var(--fg-muted)]">
+              <span className="text-[var(--accent)] font-medium">VERDICT:</span>{' '}
+              {extractSummary(verdict.executiveSummary || 'Evaluation complete.', 80)}
+            </p>
+          </div>
+
+          {/* Strengths & Risks */}
+          <div className="border-t border-[var(--border)] pt-4 grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              {verdict.keyStrengths.slice(0, 2).map((s, i) => (
+                <p key={i} className="text-[var(--fg-muted)] text-xs">
+                  <span className="text-[var(--accent)]">+</span> {cleanItem(s)}
+                </p>
+              ))}
+            </div>
+            <div className="space-y-1">
+              {verdict.keyRisks.slice(0, 2).map((r, i) => (
+                <p key={i} className="text-[var(--fg-muted)] text-xs">
+                  <span className="text-[var(--fg-subtle)]">−</span> {cleanItem(r)}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <button
+          onClick={onExpand}
+          className="mt-10 px-6 py-3 font-mono text-sm tracking-wide transition-all border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black"
         >
-          <div className="mb-4">
-            <span 
-              className="text-5xl font-display"
-              style={{ color: config.color }}
-            >
-              {config.emoji}
-            </span>
-          </div>
-          
-          <h1 
-            className="font-display text-3xl md:text-4xl mb-4 tracking-wide"
-            style={{ color: config.color }}
-          >
-            {config.label}
-          </h1>
-          
-          {/* Confidence Bar */}
-          <div className="max-w-xs mx-auto mb-4">
-            <div className="flex justify-between text-xs text-[var(--fg-muted)] mb-1">
-              <span>Confidence</span>
-              <span className="font-medium text-white">{verdict.confidence}/10</span>
-            </div>
-            <div className="h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all duration-1000 ease-out"
-                style={{ 
-                  width: `${confidencePercent}%`, 
-                  backgroundColor: config.color 
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* One-liner Summary */}
-        <div className="text-center mb-8">
-          <p className="text-[var(--fg-muted)] text-lg leading-relaxed">
-            "{verdict.executiveSummary}"
-          </p>
-        </div>
-
-        {/* Bull vs Bear Count */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div 
-            className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)] cursor-pointer hover:border-[#4ade80]/50 transition-colors group"
-            onClick={onExpand}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[#4ade80] text-2xl font-display">+{verdict.keyStrengths.length}</span>
-              <span className="text-[var(--fg-subtle)] text-xs group-hover:text-[#4ade80] transition-colors">→</span>
-            </div>
-            <p className="label text-[#4ade80]">Strengths</p>
-            <p className="text-[var(--fg-subtle)] text-xs mt-1">Click to see details</p>
-          </div>
-          
-          <div 
-            className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)] cursor-pointer hover:border-[#f87171]/50 transition-colors group"
-            onClick={onExpand}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[#f87171] text-2xl font-display">−{verdict.keyRisks.length}</span>
-              <span className="text-[var(--fg-subtle)] text-xs group-hover:text-[#f87171] transition-colors">→</span>
-            </div>
-            <p className="label text-[#f87171]">Risks</p>
-            <p className="text-[var(--fg-subtle)] text-xs mt-1">Click to see details</p>
-          </div>
-        </div>
-
-        {/* #1 Next Step */}
-        {verdict.nextSteps[0] && (
-          <div className="p-6 border border-[var(--accent)]/30 bg-[var(--accent)]/5 mb-8">
-            <p className="label text-[var(--accent)] mb-2">Recommended First Step</p>
-            <p className="text-white leading-relaxed">{verdict.nextSteps[0]}</p>
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className="text-center">
-          <button
-            onClick={onExpand}
-            className="px-8 py-4 bg-white text-black font-medium text-sm tracking-wide uppercase transition-all hover:bg-[var(--accent)] inline-flex items-center gap-3"
-          >
-            <span>View Full Analysis</span>
-            <span>→</span>
-          </button>
-          <p className="text-[var(--fg-subtle)] text-xs mt-4">
-            See detailed breakdown from Catalyst Squad, Fire Squad, and Synthesis
-          </p>
-        </div>
+          [ View Full Report ]
+        </button>
       </div>
     </main>
   )
@@ -408,10 +439,19 @@ function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => voi
 function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: string; onReset: () => void }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']))
 
+  // Fallback dimensions if not present
+  const dimensions = verdict.dimensions || {
+    problemClarity: 5,
+    marketSize: 5,
+    competitionRisk: 5,
+    execution: 5,
+    businessModel: 5,
+  }
+
   const classificationConfig = {
-    PASS: { label: 'APPROVED', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.1)' },
-    CONDITIONAL_PASS: { label: 'CONDITIONAL', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)' },
-    FAIL: { label: 'REJECTED', color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)' },
+    PASS: { label: 'STRONG PASS', color: 'var(--accent)' },
+    CONDITIONAL_PASS: { label: 'CONDITIONAL PASS', color: 'var(--accent)' },
+    FAIL: { label: 'HARD NO', color: 'var(--accent)' },
   }
   const config = classificationConfig[verdict.decision]
 
@@ -425,14 +465,49 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
     setExpandedSections(newExpanded)
   }
 
+  // Scorecard helpers
+  const pad = (str: string, len: number) => str.padEnd(len, ' ')
+  const padStart = (str: string, len: number) => str.padStart(len, ' ')
+  const headerText = `${config.label} ${verdict.confidence}/10`
+  const headerPadded = padStart(headerText, Math.floor((37 + headerText.length) / 2)).padEnd(37, ' ')
+
+  const renderRow = (label: string, score: number) => {
+    const filled = Math.round(score)
+    const empty = 10 - filled
+    return (
+      <span>
+        │  {pad(label, 18)} <span className="text-[var(--accent)]">{'█'.repeat(filled)}</span>
+        <span className="text-[var(--fg-subtle)]">{'░'.repeat(empty)}</span>  {padStart(String(score), 2)}  │
+      </span>
+    )
+  }
+
+  const sections = ['Overview', 'Intake', 'Catalyst Squad', 'Fire Squad', 'Committee Decision', 'Next Steps']
+
   return (
     <div className="flex">
-      {/* Sidebar Navigation */}
-      <aside className="hidden lg:block w-64 flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)]">
+      {/* Sidebar: Scorecard + Sections Index */}
+      <aside className="hidden lg:block w-72 flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)]">
         <div className="sticky top-16 p-6">
+          {/* Scorecard */}
+          <pre className="font-mono text-[10px] leading-relaxed select-none text-[var(--fg-muted)] mb-6">
+            <span className="block">┌───────────────────────────────────────┐</span>
+            <span className="block">│<span className="text-[var(--accent)]">{headerPadded}</span>  │</span>
+            <span className="block">│  <span className="text-[var(--border-hover)]">═══════════════════════════════════</span>  │</span>
+            <span className="block">│                                       │</span>
+            <span className="block">{renderRow('Problem Clarity', dimensions.problemClarity)}</span>
+            <span className="block">{renderRow('Market Size', dimensions.marketSize)}</span>
+            <span className="block">{renderRow('Competition Risk', dimensions.competitionRisk)}</span>
+            <span className="block">{renderRow('Execution', dimensions.execution)}</span>
+            <span className="block">{renderRow('Business Model', dimensions.businessModel)}</span>
+            <span className="block">│                                       │</span>
+            <span className="block">└───────────────────────────────────────┘</span>
+          </pre>
+
+          {/* Sections Index */}
           <p className="label mb-4">Sections</p>
           <nav className="space-y-1">
-            {['Overview', 'Intake', 'Catalyst Squad', 'Fire Squad', 'Committee Decision', 'Next Steps'].map(section => (
+            {sections.map(section => (
               <a
                 key={section}
                 href={`#${section.toLowerCase().replace(' ', '-')}`}
@@ -449,37 +524,35 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
       <main className="flex-1 min-w-0 px-8 py-12 max-w-4xl">
         {/* Overview */}
         <section id="overview" className="mb-12">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <div 
-                className="inline-block px-4 py-2 text-lg font-display tracking-wide mb-4"
-                style={{ color: config.color, backgroundColor: config.bg, border: `1px solid ${config.color}30` }}
-              >
-                {config.label}
-              </div>
-              <p className="text-[var(--fg-muted)] text-sm">Confidence: {verdict.confidence}/10</p>
+          <div className="flex items-center justify-between mb-12">
+            <div 
+              className="inline-block px-4 py-2 text-lg font-display tracking-wide border border-[var(--accent)]/30 bg-[var(--accent)]/5"
+              style={{ color: config.color }}
+            >
+              {config.label}
             </div>
+            <p className="text-[var(--fg-muted)] text-lg font-mono">{verdict.confidence}/10</p>
           </div>
           <p className="text-[var(--fg-muted)] text-lg leading-relaxed mb-8">{verdict.executiveSummary}</p>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
-              <p className="label text-[#4ade80] mb-4">Key Strengths</p>
+              <p className="label text-[var(--accent)] mb-4">Key Strengths</p>
               <ul className="space-y-3">
                 {verdict.keyStrengths.map((s, i) => (
                   <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
-                    <span className="text-[#4ade80]">+</span>
+                    <span className="text-[var(--accent)]">+</span>
                     <span>{cleanText(s)}</span>
                   </li>
                 ))}
               </ul>
             </div>
             <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
-              <p className="label text-[#f87171] mb-4">Key Risks</p>
+              <p className="label text-[var(--fg-muted)] mb-4">Key Risks</p>
               <ul className="space-y-3">
                 {verdict.keyRisks.map((r, i) => (
                   <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
-                    <span className="text-[#f87171]">−</span>
+                    <span className="text-[var(--fg-subtle)]">−</span>
                     <span>{cleanText(r)}</span>
                   </li>
                 ))}
@@ -494,6 +567,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           title="Intake Analysis"
           subtitle="How we understood your submission"
           content={verdict.intake.analysis}
+          score={dimensions.problemClarity}
           expanded={expandedSections.has('intake')}
           onToggle={() => toggleSection('intake')}
         />
@@ -503,7 +577,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           title="Catalyst Squad"
           subtitle="The believers — the bull case"
           content={verdict.catalyst.analysis}
-          accentColor="#4ade80"
+          score={dimensions.marketSize}
           expanded={expandedSections.has('catalyst')}
           onToggle={() => toggleSection('catalyst')}
         />
@@ -513,7 +587,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           title="Fire Squad"
           subtitle="The skeptics — stress-testing"
           content={verdict.fire.analysis}
-          accentColor="#f87171"
+          score={dimensions.competitionRisk}
           expanded={expandedSections.has('fire')}
           onToggle={() => toggleSection('fire')}
         />
@@ -523,7 +597,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           title="Committee Decision"
           subtitle="Final synthesis"
           content={verdict.synthesis.analysis}
-          accentColor="var(--accent)"
+          score={verdict.confidence}
           expanded={expandedSections.has('synthesis')}
           onToggle={() => toggleSection('synthesis')}
         />
@@ -567,7 +641,7 @@ function ReportSection({
   title,
   subtitle,
   content,
-  accentColor = 'var(--fg-muted)',
+  score,
   expanded,
   onToggle,
 }: {
@@ -575,22 +649,23 @@ function ReportSection({
   title: string
   subtitle: string
   content: string
-  accentColor?: string
+  score?: number
   expanded: boolean
   onToggle: () => void
 }) {
   return (
-    <section id={id} className="mb-8">
+    <section id={id} className="mb-4">
       <div className="border border-[var(--border)]">
         <button 
           onClick={onToggle}
-          className="w-full p-6 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center justify-between hover:bg-[var(--bg-secondary)]/80 transition-colors text-left"
+          className="w-full px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center justify-between hover:bg-[var(--bg-card)] transition-colors text-left"
         >
-          <div>
-            <p className="font-medium text-white tracking-wide" style={{ color: accentColor }}>{title}</p>
-            <p className="text-[var(--fg-subtle)] text-sm mt-1">{subtitle}</p>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <p className="font-medium text-white tracking-wide">{title}</p>
+            <span className="text-[var(--fg-subtle)] text-sm hidden sm:inline">— {subtitle}</span>
+            {score !== undefined && <div className="ml-auto"><ScoreBar score={score} /></div>}
           </div>
-          <span className={`text-[var(--fg-muted)] transition-transform ${expanded ? 'rotate-180' : ''}`}>
+          <span className={`text-[var(--fg-muted)] transition-transform ml-4 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}>
             ▼
           </span>
         </button>
@@ -626,4 +701,20 @@ function cleanText(text: string): string {
     .replace(/\*\*/g, '')
     .replace(/^\.\s*/, '')
     .trim()
+}
+
+// Score bar component - renders ████████░░ style bars (monochrome accent)
+function ScoreBar({ score, max = 10, showNumber = true }: { score: number; max?: number; showNumber?: boolean }) {
+  const filled = Math.round((score / max) * 10)
+  const empty = 10 - filled
+  
+  return (
+    <span className="font-mono text-sm inline-flex items-center gap-2">
+      <span className="text-[var(--accent)]">
+        {'█'.repeat(filled)}
+        <span className="text-[var(--fg-subtle)]">{'░'.repeat(empty)}</span>
+      </span>
+      {showNumber && <span className="text-[var(--fg-muted)] w-4 text-right">{score}</span>}
+    </span>
+  )
 }

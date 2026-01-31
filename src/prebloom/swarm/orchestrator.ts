@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import { loadConfig } from "../../config/config.js";
 import { resolveApiKeyForProvider } from "../../agents/model-auth.js";
-import type { IdeaInput, Verdict, AgentOutput } from "../types.js";
+import type { IdeaInput, Verdict, AgentOutput, DimensionScores } from "../types.js";
 import { INTAKE_SYSTEM_PROMPT } from "./agents/intake.js";
 import { CATALYST_SYSTEM_PROMPT } from "./agents/catalyst.js";
 import { FIRE_SYSTEM_PROMPT } from "./agents/fire.js";
@@ -181,9 +181,26 @@ ${fire.analysis}
   };
 }
 
+function parseDimensionScores(analysis: string): DimensionScores {
+  const extractScore = (label: string): number => {
+    const regex = new RegExp(`${label}[:\\s]*(?:\\[)?(\\d+)\\s*\\/\\s*10`, "i");
+    const match = analysis.match(regex);
+    return match ? Math.min(10, Math.max(1, parseInt(match[1]))) : 5;
+  };
+
+  return {
+    problemClarity: extractScore("Problem Clarity"),
+    marketSize: extractScore("Market Size"),
+    competitionRisk: extractScore("Competition Risk"),
+    execution: extractScore("Execution"),
+    businessModel: extractScore("Business Model"),
+  };
+}
+
 function parseSynthesisOutput(analysis: string): {
   decision: "PASS" | "FAIL" | "CONDITIONAL_PASS";
   confidence: number;
+  dimensions: DimensionScores;
   executiveSummary: string;
   keyStrengths: string[];
   keyRisks: string[];
@@ -235,6 +252,7 @@ function parseSynthesisOutput(analysis: string): {
   return {
     decision,
     confidence: Math.min(10, Math.max(1, confidence)),
+    dimensions: parseDimensionScores(safeAnalysis),
     executiveSummary,
     keyStrengths: extractList("Key Strengths"),
     keyRisks: extractList("Key Risks"),
