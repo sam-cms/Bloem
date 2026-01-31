@@ -15,6 +15,7 @@ type Verdict = {
 }
 
 type AppState = 'input' | 'processing' | 'report'
+type ReportView = 'tldr' | 'full'
 
 const API_BASE = ''
 
@@ -24,6 +25,7 @@ export default function App() {
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentPhase, setCurrentPhase] = useState<string>('intake')
+  const [reportView, setReportView] = useState<ReportView>('tldr')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export default function App() {
         if (pollData.status === 'completed') {
           setVerdict(pollData.verdict)
           setState('report')
+          setReportView('tldr') // Start with TL;DR view
           return
         }
         if (pollData.status === 'failed') {
@@ -92,6 +95,7 @@ export default function App() {
     setIdea('')
     setVerdict(null)
     setError(null)
+    setReportView('tldr')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -101,7 +105,15 @@ export default function App() {
   }
 
   if (state === 'report' && verdict) {
-    return <WarRoomReport verdict={verdict} idea={idea} onReset={handleReset} />
+    return (
+      <ReportContainer 
+        verdict={verdict} 
+        idea={idea} 
+        onReset={handleReset}
+        view={reportView}
+        onViewChange={setReportView}
+      />
+    )
   }
 
   return (
@@ -218,8 +230,182 @@ function ProcessingView({ phase }: { phase: string }) {
   )
 }
 
-function WarRoomReport({ verdict, idea, onReset }: { verdict: Verdict; idea: string; onReset: () => void }) {
-  const [activeSection, setActiveSection] = useState('overview')
+function ReportContainer({ 
+  verdict, 
+  idea, 
+  onReset, 
+  view, 
+  onViewChange 
+}: { 
+  verdict: Verdict
+  idea: string
+  onReset: () => void
+  view: ReportView
+  onViewChange: (view: ReportView) => void
+}) {
+  return (
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-10 px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-primary)]/95 backdrop-blur">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
+              <span className="label">Prebloom</span>
+            </div>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 bg-[var(--bg-secondary)] p-1">
+            <button
+              onClick={() => onViewChange('tldr')}
+              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
+                view === 'tldr' 
+                  ? 'bg-[var(--accent)] text-black' 
+                  : 'text-[var(--fg-muted)] hover:text-white'
+              }`}
+            >
+              TL;DR
+            </button>
+            <button
+              onClick={() => onViewChange('full')}
+              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
+                view === 'full' 
+                  ? 'bg-[var(--accent)] text-black' 
+                  : 'text-[var(--fg-muted)] hover:text-white'
+              }`}
+            >
+              Full Report
+            </button>
+          </div>
+
+          <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
+            ← New Analysis
+          </button>
+        </div>
+      </header>
+
+      {view === 'tldr' ? (
+        <TLDRView verdict={verdict} onExpand={() => onViewChange('full')} />
+      ) : (
+        <FullReportView verdict={verdict} idea={idea} onReset={onReset} />
+      )}
+    </div>
+  )
+}
+
+function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => void }) {
+  const classificationConfig = {
+    PASS: { label: 'APPROVED', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.1)', emoji: '✓' },
+    CONDITIONAL_PASS: { label: 'CONDITIONAL', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)', emoji: '~' },
+    FAIL: { label: 'REJECTED', color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)', emoji: '✗' },
+  }
+  const config = classificationConfig[verdict.decision]
+  const confidencePercent = (verdict.confidence / 10) * 100
+
+  return (
+    <main className="max-w-2xl mx-auto px-6 py-12">
+      <div className="reveal-up">
+        {/* Hero Verdict Card */}
+        <div 
+          className="border-2 p-8 mb-8 text-center"
+          style={{ borderColor: config.color, backgroundColor: config.bg }}
+        >
+          <div className="mb-4">
+            <span 
+              className="text-5xl font-display"
+              style={{ color: config.color }}
+            >
+              {config.emoji}
+            </span>
+          </div>
+          
+          <h1 
+            className="font-display text-3xl md:text-4xl mb-4 tracking-wide"
+            style={{ color: config.color }}
+          >
+            {config.label}
+          </h1>
+          
+          {/* Confidence Bar */}
+          <div className="max-w-xs mx-auto mb-4">
+            <div className="flex justify-between text-xs text-[var(--fg-muted)] mb-1">
+              <span>Confidence</span>
+              <span className="font-medium text-white">{verdict.confidence}/10</span>
+            </div>
+            <div className="h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-1000 ease-out"
+                style={{ 
+                  width: `${confidencePercent}%`, 
+                  backgroundColor: config.color 
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* One-liner Summary */}
+        <div className="text-center mb-8">
+          <p className="text-[var(--fg-muted)] text-lg leading-relaxed">
+            "{verdict.executiveSummary}"
+          </p>
+        </div>
+
+        {/* Bull vs Bear Count */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div 
+            className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)] cursor-pointer hover:border-[#4ade80]/50 transition-colors group"
+            onClick={onExpand}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[#4ade80] text-2xl font-display">+{verdict.keyStrengths.length}</span>
+              <span className="text-[var(--fg-subtle)] text-xs group-hover:text-[#4ade80] transition-colors">→</span>
+            </div>
+            <p className="label text-[#4ade80]">Strengths</p>
+            <p className="text-[var(--fg-subtle)] text-xs mt-1">Click to see details</p>
+          </div>
+          
+          <div 
+            className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)] cursor-pointer hover:border-[#f87171]/50 transition-colors group"
+            onClick={onExpand}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[#f87171] text-2xl font-display">−{verdict.keyRisks.length}</span>
+              <span className="text-[var(--fg-subtle)] text-xs group-hover:text-[#f87171] transition-colors">→</span>
+            </div>
+            <p className="label text-[#f87171]">Risks</p>
+            <p className="text-[var(--fg-subtle)] text-xs mt-1">Click to see details</p>
+          </div>
+        </div>
+
+        {/* #1 Next Step */}
+        {verdict.nextSteps[0] && (
+          <div className="p-6 border border-[var(--accent)]/30 bg-[var(--accent)]/5 mb-8">
+            <p className="label text-[var(--accent)] mb-2">Recommended First Step</p>
+            <p className="text-white leading-relaxed">{verdict.nextSteps[0]}</p>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="text-center">
+          <button
+            onClick={onExpand}
+            className="px-8 py-4 bg-white text-black font-medium text-sm tracking-wide uppercase transition-all hover:bg-[var(--accent)] inline-flex items-center gap-3"
+          >
+            <span>View Full Analysis</span>
+            <span>→</span>
+          </button>
+          <p className="text-[var(--fg-subtle)] text-xs mt-4">
+            See detailed breakdown from Catalyst Squad, Fire Squad, and Synthesis
+          </p>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: string; onReset: () => void }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']))
 
   const classificationConfig = {
@@ -228,15 +414,6 @@ function WarRoomReport({ verdict, idea, onReset }: { verdict: Verdict; idea: str
     FAIL: { label: 'REJECTED', color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)' },
   }
   const config = classificationConfig[verdict.decision]
-
-  const sections = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'intake', label: 'Intake Analysis' },
-    { id: 'catalyst', label: 'Catalyst Squad' },
-    { id: 'fire', label: 'Fire Squad' },
-    { id: 'synthesis', label: 'Committee Decision' },
-    { id: 'actions', label: 'Next Steps' },
-  ]
 
   const toggleSection = (id: string) => {
     const newExpanded = new Set(expandedSections)
@@ -248,192 +425,138 @@ function WarRoomReport({ verdict, idea, onReset }: { verdict: Verdict; idea: str
     setExpandedSections(newExpanded)
   }
 
-  const scrollToSection = (id: string) => {
-    setActiveSection(id)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex">
+    <div className="flex">
       {/* Sidebar Navigation */}
       <aside className="hidden lg:block w-64 flex-shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)]">
-        <div className="sticky top-0 p-6">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-2 h-2 bg-[var(--accent)] rounded-full" />
-            <span className="label">Report Navigation</span>
-          </div>
-          
+        <div className="sticky top-16 p-6">
+          <p className="label mb-4">Sections</p>
           <nav className="space-y-1">
-            {sections.map(section => (
-              <button
-                key={section.id}
-                onClick={() => scrollToSection(section.id)}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                  activeSection === section.id 
-                    ? 'text-white bg-white/5 border-l-2 border-[var(--accent)]' 
-                    : 'text-[var(--fg-muted)] hover:text-white'
-                }`}
+            {['Overview', 'Intake', 'Catalyst Squad', 'Fire Squad', 'Committee Decision', 'Next Steps'].map(section => (
+              <a
+                key={section}
+                href={`#${section.toLowerCase().replace(' ', '-')}`}
+                className="block px-3 py-2 text-sm text-[var(--fg-muted)] hover:text-white transition-colors"
               >
-                {section.label}
-              </button>
+                {section}
+              </a>
             ))}
           </nav>
-
-          <div className="mt-12 pt-6 border-t border-[var(--border)] space-y-3">
-            <button className="w-full px-4 py-2 text-xs text-[var(--fg-muted)] border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors tracking-wide uppercase">
-              Export PDF
-            </button>
-            <button className="w-full px-4 py-2 text-xs text-[var(--fg-muted)] border border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors tracking-wide uppercase">
-              Share Report
-            </button>
-          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-10 px-8 py-4 border-b border-[var(--border)] bg-[var(--bg-primary)]/95 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <main className="flex-1 min-w-0 px-8 py-12 max-w-4xl">
+        {/* Overview */}
+        <section id="overview" className="mb-12">
+          <div className="flex items-start justify-between mb-6">
+            <div>
               <div 
-                className="px-3 py-1 text-sm font-medium tracking-wide"
+                className="inline-block px-4 py-2 text-lg font-display tracking-wide mb-4"
                 style={{ color: config.color, backgroundColor: config.bg, border: `1px solid ${config.color}30` }}
               >
                 {config.label}
               </div>
-              <span className="text-[var(--fg-muted)] text-sm">Confidence: {verdict.confidence}/10</span>
+              <p className="text-[var(--fg-muted)] text-sm">Confidence: {verdict.confidence}/10</p>
             </div>
-            <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
-              ← New Analysis
-            </button>
           </div>
-        </header>
+          <p className="text-[var(--fg-muted)] text-lg leading-relaxed mb-8">{verdict.executiveSummary}</p>
 
-        <div className="px-8 py-12 max-w-4xl">
-          {/* Overview Section */}
-          <section id="overview" className="mb-12">
-            <div className="mb-8">
-              <p className="label text-[var(--accent)] mb-4">Executive Summary</p>
-              <h1 className="font-display text-3xl md:text-4xl text-white mb-6">VERDICT REPORT</h1>
-              <p className="text-[var(--fg-muted)] text-lg leading-relaxed">{verdict.executiveSummary}</p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
-                <p className="label text-[#4ade80] mb-4">Key Strengths</p>
-                <ul className="space-y-3">
-                  {verdict.keyStrengths.slice(0, 4).map((s, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
-                      <span className="text-[#4ade80] flex-shrink-0">+</span>
-                      <span>{cleanText(s)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
-                <p className="label text-[#f87171] mb-4">Key Risks</p>
-                <ul className="space-y-3">
-                  {verdict.keyRisks.slice(0, 4).map((r, i) => (
-                    <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
-                      <span className="text-[#f87171] flex-shrink-0">−</span>
-                      <span>{cleanText(r)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* Intake Section */}
-          <ReportSection
-            id="intake"
-            title="Intake Analysis"
-            subtitle="How we understood your submission"
-            content={verdict.intake.analysis}
-            expanded={expandedSections.has('intake')}
-            onToggle={() => toggleSection('intake')}
-          />
-
-          {/* Catalyst Section */}
-          <ReportSection
-            id="catalyst"
-            title="Catalyst Squad"
-            subtitle="The believers — the bull case for this idea"
-            content={verdict.catalyst.analysis}
-            accentColor="#4ade80"
-            expanded={expandedSections.has('catalyst')}
-            onToggle={() => toggleSection('catalyst')}
-          />
-
-          {/* Fire Section */}
-          <ReportSection
-            id="fire"
-            title="Fire Squad"
-            subtitle="The skeptics — stress-testing every assumption"
-            content={verdict.fire.analysis}
-            accentColor="#f87171"
-            expanded={expandedSections.has('fire')}
-            onToggle={() => toggleSection('fire')}
-          />
-
-          {/* Synthesis Section */}
-          <ReportSection
-            id="synthesis"
-            title="Committee Decision"
-            subtitle="Final synthesis weighing all arguments"
-            content={verdict.synthesis.analysis}
-            accentColor="var(--accent)"
-            expanded={expandedSections.has('synthesis')}
-            onToggle={() => toggleSection('synthesis')}
-          />
-
-          {/* Actions Section */}
-          <section id="actions" className="mb-12">
-            <div className="border border-[var(--border)]">
-              <div className="p-6 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-                <p className="label text-[var(--accent)]">Recommended Next Steps</p>
-              </div>
-              <div className="p-6 space-y-4">
-                {verdict.nextSteps.map((step, i) => (
-                  <div key={i} className="flex gap-4 items-start">
-                    <span className="w-6 h-6 flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] text-sm font-medium flex-shrink-0">
-                      {i + 1}
-                    </span>
-                    <p className="text-[var(--fg-muted)] leading-relaxed">{step}</p>
-                  </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
+              <p className="label text-[#4ade80] mb-4">Key Strengths</p>
+              <ul className="space-y-3">
+                {verdict.keyStrengths.map((s, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
+                    <span className="text-[#4ade80]">+</span>
+                    <span>{cleanText(s)}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-          </section>
-
-          {/* Future Actions */}
-          <section className="mb-12 p-6 border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/50">
-            <p className="label text-[var(--fg-subtle)] mb-4">Coming Soon</p>
-            <div className="grid md:grid-cols-3 gap-4">
-              <button disabled className="p-4 border border-[var(--border)] text-[var(--fg-subtle)] text-sm opacity-50 cursor-not-allowed">
-                🗨️ Ask Follow-up Questions
-              </button>
-              <button disabled className="p-4 border border-[var(--border)] text-[var(--fg-subtle)] text-sm opacity-50 cursor-not-allowed">
-                📋 Generate Business Canvas
-              </button>
-              <button disabled className="p-4 border border-[var(--border)] text-[var(--fg-subtle)] text-sm opacity-50 cursor-not-allowed">
-                📅 Create Validation Plan
-              </button>
+            <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
+              <p className="label text-[#f87171] mb-4">Key Risks</p>
+              <ul className="space-y-3">
+                {verdict.keyRisks.map((r, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
+                    <span className="text-[#f87171]">−</span>
+                    <span>{cleanText(r)}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Footer */}
-          <footer className="pt-8 border-t border-[var(--border)] flex items-center justify-between">
-            <p className="label">End of Report</p>
-            <button
-              onClick={onReset}
-              className="px-6 py-3 bg-white text-black font-medium text-sm tracking-wide uppercase transition-all hover:bg-[var(--accent)]"
-            >
-              Analyze Another Idea
-            </button>
-          </footer>
-        </div>
+        {/* Agent Sections */}
+        <ReportSection
+          id="intake"
+          title="Intake Analysis"
+          subtitle="How we understood your submission"
+          content={verdict.intake.analysis}
+          expanded={expandedSections.has('intake')}
+          onToggle={() => toggleSection('intake')}
+        />
+
+        <ReportSection
+          id="catalyst-squad"
+          title="Catalyst Squad"
+          subtitle="The believers — the bull case"
+          content={verdict.catalyst.analysis}
+          accentColor="#4ade80"
+          expanded={expandedSections.has('catalyst')}
+          onToggle={() => toggleSection('catalyst')}
+        />
+
+        <ReportSection
+          id="fire-squad"
+          title="Fire Squad"
+          subtitle="The skeptics — stress-testing"
+          content={verdict.fire.analysis}
+          accentColor="#f87171"
+          expanded={expandedSections.has('fire')}
+          onToggle={() => toggleSection('fire')}
+        />
+
+        <ReportSection
+          id="committee-decision"
+          title="Committee Decision"
+          subtitle="Final synthesis"
+          content={verdict.synthesis.analysis}
+          accentColor="var(--accent)"
+          expanded={expandedSections.has('synthesis')}
+          onToggle={() => toggleSection('synthesis')}
+        />
+
+        {/* Next Steps */}
+        <section id="next-steps" className="mb-12">
+          <div className="border border-[var(--border)]">
+            <div className="p-6 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+              <p className="label text-[var(--accent)]">Recommended Next Steps</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {verdict.nextSteps.map((step, i) => (
+                <div key={i} className="flex gap-4 items-start">
+                  <span className="w-6 h-6 flex items-center justify-center bg-[var(--accent)]/10 text-[var(--accent)] text-sm font-medium flex-shrink-0">
+                    {i + 1}
+                  </span>
+                  <p className="text-[var(--fg-muted)] leading-relaxed">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="pt-8 border-t border-[var(--border)] flex items-center justify-between">
+          <p className="label">End of Report</p>
+          <button
+            onClick={onReset}
+            className="px-6 py-3 bg-white text-black font-medium text-sm tracking-wide uppercase transition-all hover:bg-[var(--accent)]"
+          >
+            Analyze Another Idea
+          </button>
+        </footer>
       </main>
     </div>
   )
@@ -456,11 +579,6 @@ function ReportSection({
   expanded: boolean
   onToggle: () => void
 }) {
-  // Extract first paragraph as summary
-  const paragraphs = content.split('\n\n').filter(p => p.trim())
-  const summary = paragraphs[0] || ''
-  const hasMore = paragraphs.length > 1
-
   return (
     <section id={id} className="mb-8">
       <div className="border border-[var(--border)]">
@@ -478,7 +596,7 @@ function ReportSection({
         </button>
         
         <div className={`transition-all overflow-hidden ${expanded ? 'max-h-[2000px]' : 'max-h-0'}`}>
-          <div className="p-6 prose-custom">
+          <div className="p-6">
             <ReactMarkdown
               components={{
                 h1: ({ children }) => <h1 className="text-xl font-semibold text-white mb-4 mt-6 first:mt-0">{children}</h1>,
