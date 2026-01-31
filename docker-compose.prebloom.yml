@@ -1,32 +1,33 @@
 version: "3.8"
 
-# Prebloom Docker Compose
+# Prebloom Full Stack Docker Compose
 # 
 # Usage:
 #   docker compose -f docker-compose.prebloom.yml up --build
 #
+# Access:
+#   Frontend: http://localhost:8080
+#   API: http://localhost:8080/prebloom/
+#
 # Environment variables (create .env file):
 #   ANTHROPIC_API_KEY=sk-ant-...
-#   CLAWDBOT_GATEWAY_TOKEN=your-secret-token
 
 services:
-  prebloom:
+  # Backend: Bloem + Prebloom API
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       HOME: /home/node
       NODE_ENV: production
-      # API Keys
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      # Gateway config
-      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN:-prebloom-dev-token}
+      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN:-prebloom-internal}
       CLAWDBOT_GATEWAY_BIND: lan
-    ports:
-      - "${PREBLOOM_PORT:-3001}:3001"
     volumes:
-      # Persist config and state
       - prebloom-config:/home/node/.clawdbot
+    expose:
+      - "3001"
     init: true
     restart: unless-stopped
     command:
@@ -40,11 +41,28 @@ services:
         "3001"
       ]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/prebloom/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:3001/prebloom/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
+
+  # Frontend: React + Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${PREBLOOM_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   prebloom-config:
