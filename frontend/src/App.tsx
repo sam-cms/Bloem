@@ -34,6 +34,7 @@ const DIMENSION_CONFIG: { key: keyof DimensionScores; label: string }[] = [
 
 type AppState = 'input' | 'processing' | 'report'
 type ReportView = 'tldr' | 'full'
+type RecordingState = 'idle' | 'recording' | 'transcribing'
 
 const API_BASE = ''
 
@@ -44,7 +45,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [currentPhase, setCurrentPhase] = useState<string>('intake')
   const [reportView, setReportView] = useState<ReportView>('full')
+  const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -121,6 +125,71 @@ export default function App() {
     }
   }
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop())
+
+        // Create blob and send to transcribe endpoint
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        setRecordingState('transcribing')
+
+        try {
+          const response = await fetch(`${API_BASE}/prebloom/transcribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'audio/webm' },
+            body: audioBlob,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Transcription failed' }))
+            throw new Error(errorData.error || 'Transcription failed')
+          }
+
+          const result = await response.json()
+          // Append transcribed text to existing idea (or replace if empty)
+          setIdea(prev => prev ? `${prev}\n\n${result.text}` : result.text)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Transcription failed')
+        } finally {
+          setRecordingState('idle')
+        }
+      }
+
+      mediaRecorder.start()
+      setRecordingState('recording')
+    } catch (err) {
+      setError('Microphone access denied')
+      setRecordingState('idle')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recordingState === 'recording') {
+      mediaRecorderRef.current.stop()
+    }
+  }
+
+  const toggleRecording = () => {
+    if (recordingState === 'recording') {
+      stopRecording()
+    } else if (recordingState === 'idle') {
+      startRecording()
+    }
+  }
+
   if (state === 'report' && verdict) {
     return (
       <ReportContainer 
@@ -166,18 +235,59 @@ export default function App() {
                   </div>
                 )}
 
-                <textarea
-                  ref={textareaRef}
-                  value={idea}
-                  onChange={e => setIdea(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="I'm building an AI-powered tool that helps photographers get brutally honest feedback on their work before submitting to galleries..."
-                  rows={6}
-                  className="w-full px-5 py-4 bg-[var(--bg-secondary)] border border-[var(--border)] text-white placeholder-[var(--fg-subtle)] focus:border-[var(--accent-muted)] focus:outline-none transition-colors resize-none text-base leading-relaxed"
-                />
+                <div className="relative">
+                  <textarea
+                    ref={textareaRef}
+                    value={idea}
+                    onChange={e => setIdea(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="I'm building an AI-powered tool that helps photographers get brutally honest feedback on their work before submitting to galleries..."
+                    rows={6}
+                    disabled={recordingState !== 'idle'}
+                    className="w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border border-[var(--border)] text-white placeholder-[var(--fg-subtle)] focus:border-[var(--accent-muted)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50"
+                  />
+                  
+                  {/* Mic Button */}
+                  <button
+                    type="button"
+                    onClick={toggleRecording}
+                    disabled={recordingState === 'transcribing'}
+                    className={`absolute right-3 top-3 w-10 h-10 flex items-center justify-center border transition-all ${
+                      recordingState === 'recording'
+                        ? 'bg-red-500/20 border-red-500 text-red-500 animate-pulse'
+                        : recordingState === 'transcribing'
+                        ? 'bg-[var(--accent)]/10 border-[var(--accent)] text-[var(--accent)]'
+                        : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                    }`}
+                    title={
+                      recordingState === 'recording' 
+                        ? 'Click to stop recording' 
+                        : recordingState === 'transcribing'
+                        ? 'Transcribing...'
+                        : 'Click to record voice input'
+                    }
+                  >
+                    {recordingState === 'recording' ? (
+                      <span className="w-3 h-3 bg-red-500 rounded-sm" />
+                    ) : recordingState === 'transcribing' ? (
+                      <div className="spinner" />
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <p className="text-[var(--fg-subtle)] text-xs">⌘+Enter to submit</p>
+                  <p className="text-[var(--fg-subtle)] text-xs">
+                    {recordingState === 'recording' 
+                      ? '🔴 Recording... click mic to stop'
+                      : recordingState === 'transcribing'
+                      ? '⏳ Transcribing audio...'
+                      : '⌘+Enter to submit • 🎤 for voice'
+                    }
+                  </p>
                   <button
                     type="submit"
                     disabled={!idea.trim()}

@@ -11,6 +11,23 @@
 #   ANTHROPIC_API_KEY=sk-ant-...
 
 services:
+  # Whisper: Local speech-to-text service
+  whisper:
+    build:
+      context: ./whisper-service
+      dockerfile: Dockerfile
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Model loading takes time
+
   # Backend: Bloem + Prebloom API
   backend:
     build:
@@ -22,6 +39,10 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN:-prebloom-internal}
       CLAWDBOT_GATEWAY_BIND: lan
+      WHISPER_SERVICE_URL: http://whisper:8000
+    depends_on:
+      whisper:
+        condition: service_healthy
     volumes:
       - prebloom-config:/home/node/.clawdbot
     expose:
