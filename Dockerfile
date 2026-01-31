@@ -25,6 +25,11 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN CLAWDBOT_A2UI_SKIP_MISSING=1 pnpm build
+
+# Copy Prebloom skills library to dist (not handled by TypeScript)
+RUN if [ -d "src/prebloom/skills-library" ]; then \
+      cp -r src/prebloom/skills-library dist/prebloom/skills-library; \
+    fi
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV CLAWDBOT_PREFER_PNPM=1
 RUN pnpm ui:install

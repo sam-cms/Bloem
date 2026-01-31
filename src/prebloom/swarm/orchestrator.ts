@@ -7,6 +7,16 @@ import { INTAKE_SYSTEM_PROMPT } from "./agents/intake.js";
 import { CATALYST_SYSTEM_PROMPT } from "./agents/catalyst.js";
 import { FIRE_SYSTEM_PROMPT } from "./agents/fire.js";
 import { SYNTHESIS_SYSTEM_PROMPT } from "./agents/synthesis.js";
+import { applySkillById, getRegistry } from "../skills/index.js";
+
+export interface EvaluationOptions {
+  /** Apply humanizer skill to outputs */
+  humanize?: boolean;
+  /** Apply transcription skill to input (for voice submissions) */
+  transcribe?: boolean;
+  /** Custom skills to apply (by ID) */
+  skills?: string[];
+}
 
 // Default model for Prebloom evaluations
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
@@ -29,13 +39,13 @@ interface AnthropicResponse {
 
 async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
   const { name, systemPrompt, userMessage, model = DEFAULT_MODEL } = options;
-  
+
   console.log(`🤖 [Prebloom] Running ${name} agent...`);
   const started = Date.now();
 
   // Get API key - prefer env var for standalone Docker deployment
   let apiKey = process.env.ANTHROPIC_API_KEY;
-  
+
   if (!apiKey) {
     // Fall back to Bloem's auth system
     const cfg = loadConfig();
@@ -45,7 +55,7 @@ async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
     });
     apiKey = authResult.apiKey;
   }
-  
+
   if (!apiKey) {
     throw new Error(`No API key found for anthropic. Set ANTHROPIC_API_KEY environment variable.`);
   }
@@ -109,22 +119,45 @@ ${input.whyYou ? `**Why You (Founder):** ${input.whyYou}` : ""}
 `.trim();
 }
 
-export async function evaluateIdea(input: IdeaInput): Promise<Verdict> {
+export async function evaluateIdea(
+  input: IdeaInput,
+  options: EvaluationOptions = {},
+): Promise<Verdict> {
   const id = crypto.randomUUID();
-  const ideaText = formatIdeaForAgents(input);
-  
+  let ideaText = formatIdeaForAgents(input);
+
   console.log(`\n🌱 [Prebloom] Starting evaluation ${id}\n`);
   const totalStarted = Date.now();
 
+  // Initialize skills registry
+  const registry = getRegistry();
+  console.log(
+    `[Prebloom] Skills available: ${
+      registry
+        .list()
+        .map((s) => s.name)
+        .join(", ") || "none"
+    }`,
+  );
+
+  // Phase 0: Apply transcription skill if enabled (for voice input)
+  if (options.transcribe && registry.has("transcription")) {
+    console.log(`[Prebloom] Applying transcription skill to input...`);
+    const result = await applySkillById("transcription", { text: ideaText, agent: "input" });
+    if (result.applied) {
+      ideaText = result.text;
+    }
+  }
+
   // Phase 1: Intake
-  const intake = await runAgent({
+  let intake = await runAgent({
     name: "Intake",
     systemPrompt: INTAKE_SYSTEM_PROMPT,
     userMessage: ideaText,
   });
 
   // Phase 2: Catalyst and Fire run in parallel
-  const [catalyst, fire] = await Promise.all([
+  let [catalyst, fire] = await Promise.all([
     runAgent({
       name: "Catalyst",
       systemPrompt: CATALYST_SYSTEM_PROMPT,
@@ -157,17 +190,53 @@ ${catalyst.analysis}
 ${fire.analysis}
 `.trim();
 
-  const synthesis = await runAgent({
+  let synthesis = await runAgent({
     name: "Synthesis",
     systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
     userMessage: synthesisInput,
   });
 
+  // Phase 4: Apply humanizer skill if enabled
+  if (options.humanize && registry.has("humanizer")) {
+    console.log(`[Prebloom] Applying humanizer skill to outputs...`);
+
+    const [intakeHumanized, catalystHumanized, fireHumanized, synthesisHumanized] =
+      await Promise.all([
+        applySkillById("humanizer", { text: intake.analysis, agent: "intake" }),
+        applySkillById("humanizer", { text: catalyst.analysis, agent: "catalyst" }),
+        applySkillById("humanizer", { text: fire.analysis, agent: "fire" }),
+        applySkillById("humanizer", { text: synthesis.analysis, agent: "synthesis" }),
+      ]);
+
+    if (intakeHumanized.applied) intake = { ...intake, analysis: intakeHumanized.text };
+    if (catalystHumanized.applied) catalyst = { ...catalyst, analysis: catalystHumanized.text };
+    if (fireHumanized.applied) fire = { ...fire, analysis: fireHumanized.text };
+    if (synthesisHumanized.applied) synthesis = { ...synthesis, analysis: synthesisHumanized.text };
+  }
+
+  // Phase 5: Apply custom skills if specified
+  if (options.skills && options.skills.length > 0) {
+    for (const skillId of options.skills) {
+      if (registry.has(skillId)) {
+        console.log(`[Prebloom] Applying custom skill: ${skillId}`);
+        const synthesisResult = await applySkillById(skillId, {
+          text: synthesis.analysis,
+          agent: "synthesis",
+        });
+        if (synthesisResult.applied) {
+          synthesis = { ...synthesis, analysis: synthesisResult.text };
+        }
+      }
+    }
+  }
+
   // Parse synthesis output for structured verdict
   const parsedVerdict = parseSynthesisOutput(synthesis.analysis);
 
   const totalElapsed = Date.now() - totalStarted;
-  console.log(`\n✨ [Prebloom] Evaluation complete: ${parsedVerdict.decision} (${parsedVerdict.confidence}/10) in ${totalElapsed}ms\n`);
+  console.log(
+    `\n✨ [Prebloom] Evaluation complete: ${parsedVerdict.decision} (${parsedVerdict.confidence}/10) in ${totalElapsed}ms\n`,
+  );
 
   return {
     id,
@@ -209,24 +278,25 @@ function parseSynthesisOutput(analysis: string): {
 } {
   // Safety: ensure analysis is a string
   const safeAnalysis = analysis || "";
-  
+
   // Determine decision
   let decision: "PASS" | "FAIL" | "CONDITIONAL_PASS" = "CONDITIONAL_PASS";
   const upperAnalysis = safeAnalysis.toUpperCase();
-  
+
   if (upperAnalysis.includes("VERDICT: PASS") && !upperAnalysis.includes("CONDITIONAL")) {
     decision = "PASS";
   } else if (upperAnalysis.includes("VERDICT: FAIL")) {
     decision = "FAIL";
-  } else if (upperAnalysis.includes("CONDITIONAL_PASS") || upperAnalysis.includes("CONDITIONAL PASS")) {
+  } else if (
+    upperAnalysis.includes("CONDITIONAL_PASS") ||
+    upperAnalysis.includes("CONDITIONAL PASS")
+  ) {
     decision = "CONDITIONAL_PASS";
   }
 
   // Extract confidence score (look for patterns like "7/10" or "Confidence: 7")
   const confidenceMatch = safeAnalysis.match(/confidence[:\s]*(\d+)\s*\/\s*10|(\d+)\s*\/\s*10/i);
-  const confidence = confidenceMatch 
-    ? parseInt(confidenceMatch[1] || confidenceMatch[2]) 
-    : 5;
+  const confidence = confidenceMatch ? parseInt(confidenceMatch[1] || confidenceMatch[2]) : 5;
 
   // Extract executive summary (first section after "Executive Summary")
   const summaryMatch = safeAnalysis.match(/executive summary[:\s]*\n+([\s\S]*?)(?=\n\n|\n###|$)/i);
@@ -239,7 +309,10 @@ function parseSynthesisOutput(analysis: string): {
 
   // Helper to extract bullet lists
   const extractList = (label: string): string[] => {
-    const regex = new RegExp(`${label}[:\\s]*(?:\\([^)]+\\))?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\n|\\n###|$)`, "i");
+    const regex = new RegExp(
+      `${label}[:\\s]*(?:\\([^)]+\\))?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\n|\\n###|$)`,
+      "i",
+    );
     const match = safeAnalysis.match(regex);
     if (!match || !match[1]) return [];
     return match[1]

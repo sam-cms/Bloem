@@ -2,8 +2,9 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import crypto from "node:crypto";
 
 import { loadConfig } from "../../config/config.js";
-import { evaluateIdea } from "../swarm/orchestrator.js";
+import { evaluateIdea, type EvaluationOptions } from "../swarm/orchestrator.js";
 import { ideaInputSchema, type EvaluationJob } from "../types.js";
+import { listSkills } from "../skills/index.js";
 
 // In-memory job store (replace with persistent storage in production)
 const jobs = new Map<string, EvaluationJob>();
@@ -48,7 +49,7 @@ async function readJsonBody(req: IncomingMessage, maxBytes = 1024 * 1024): Promi
 
 /**
  * Handle Prebloom HTTP requests.
- * 
+ *
  * Routes:
  * - POST /prebloom/evaluate — Submit idea for evaluation
  * - GET /prebloom/evaluate/:id — Get evaluation status/result
@@ -61,7 +62,7 @@ export async function handlePrebloomHttpRequest(
   // Parse URL
   const host = req.headers.host || "localhost";
   const url = new URL(req.url ?? "/", `http://${host}`);
-  
+
   // Only handle /prebloom/* routes
   if (!url.pathname.startsWith("/prebloom")) {
     return false;
@@ -77,11 +78,23 @@ export async function handlePrebloomHttpRequest(
     return true;
   }
 
+  // GET /prebloom/skills — List available skills
+  if (url.pathname === "/prebloom/skills" && req.method === "GET") {
+    const skills = listSkills().map((s) => ({
+      id: s.id,
+      name: s.name,
+      version: s.version,
+      description: s.description,
+    }));
+    sendJson(res, 200, { skills });
+    return true;
+  }
+
   // POST /prebloom/evaluate — Submit idea
   if (url.pathname === "/prebloom/evaluate" && req.method === "POST") {
     try {
       const body = await readJsonBody(req);
-      
+
       // Validate input
       const parseResult = ideaInputSchema.safeParse(body);
       if (!parseResult.success) {
@@ -95,6 +108,16 @@ export async function handlePrebloomHttpRequest(
       const input = parseResult.data;
       const jobId = crypto.randomUUID();
 
+      // Extract skill options from body
+      const rawBody = body as Record<string, unknown>;
+      const options: EvaluationOptions = {
+        humanize: rawBody.humanize === true,
+        transcribe: rawBody.transcribe === true,
+        skills: Array.isArray(rawBody.skills)
+          ? rawBody.skills.filter((s): s is string => typeof s === "string")
+          : undefined,
+      };
+
       // Create job record
       const job: EvaluationJob = {
         id: jobId,
@@ -107,7 +130,7 @@ export async function handlePrebloomHttpRequest(
       // Start evaluation async
       job.status = "processing";
 
-      evaluateIdea(input)
+      evaluateIdea(input, options)
         .then((verdict) => {
           job.status = "completed";
           job.verdict = verdict;
