@@ -123,6 +123,11 @@ export default function App() {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       handleSubmit(e)
     }
+    // Shift+Enter to toggle voice recording
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      toggleRecording()
+    }
   }
 
   const startRecording = async () => {
@@ -282,10 +287,10 @@ export default function App() {
                 <div className="mt-6 flex items-center justify-between">
                   <p className="text-[var(--fg-subtle)] text-xs">
                     {recordingState === 'recording' 
-                      ? '🔴 Recording... click mic to stop'
+                      ? '🔴 Recording... press Shift+Enter or click mic to stop'
                       : recordingState === 'transcribing'
                       ? '⏳ Transcribing audio...'
-                      : '⌘+Enter to submit • 🎤 for voice'
+                      : 'Shift+Enter to talk'
                     }
                   </p>
                   <button
