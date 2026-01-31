@@ -248,7 +248,7 @@ export function createGatewayHttpServer(opts: {
       )
         return;
       if (await handleSlackHttpRequest(req, res)) return;
-      if (await handlePrebloomHttpRequest(req, res, { bindHost, port })) return;
+      if (await handlePrebloomHttpRequest(req, res)) return;
       if (handlePluginRequest && (await handlePluginRequest(req, res))) return;
       if (openResponsesEnabled) {
         if (

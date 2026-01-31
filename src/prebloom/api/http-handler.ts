@@ -2,8 +2,6 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import crypto from "node:crypto";
 
 import { loadConfig } from "../../config/config.js";
-import { authorizeGatewayConnect } from "../../gateway/auth.js";
-import { getBearerToken } from "../../gateway/http-utils.js";
 import { evaluateIdea } from "../swarm/orchestrator.js";
 import { ideaInputSchema, type EvaluationJob } from "../types.js";
 
@@ -59,40 +57,23 @@ async function readJsonBody(req: IncomingMessage, maxBytes = 1024 * 1024): Promi
 export async function handlePrebloomHttpRequest(
   req: IncomingMessage,
   res: ServerResponse,
-  opts: {
-    bindHost: string;
-    port: number;
-  },
 ): Promise<boolean> {
-  const url = new URL(req.url ?? "/", `http://${opts.bindHost}:${opts.port}`);
+  // Parse URL
+  const host = req.headers.host || "localhost";
+  const url = new URL(req.url ?? "/", `http://${host}`);
   
   // Only handle /prebloom/* routes
   if (!url.pathname.startsWith("/prebloom")) {
     return false;
   }
 
-  // Health check (no auth required)
+  // Health check (no auth required for now)
   if (url.pathname === "/prebloom/health" && req.method === "GET") {
     sendJson(res, 200, {
       service: "prebloom",
       status: "healthy",
       jobsInMemory: jobs.size,
     });
-    return true;
-  }
-
-  // Auth check for other endpoints
-  const cfg = loadConfig();
-  const token = getBearerToken(req);
-  const auth = authorizeGatewayConnect({
-    cfg,
-    token: token ?? undefined,
-    password: undefined,
-    mode: "api",
-  });
-
-  if (!auth.allowed) {
-    sendError(res, 401, "Unauthorized");
     return true;
   }
 

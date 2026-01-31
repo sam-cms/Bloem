@@ -1,8 +1,7 @@
-import { completeSimple, getModel } from "@mariozechner/pi-ai";
 import crypto from "node:crypto";
 
 import { loadConfig } from "../../config/config.js";
-import { getApiKeyForModel } from "../../agents/model-auth.js";
+import { resolveApiKeyForProvider } from "../../agents/model-auth.js";
 import type { IdeaInput, Verdict, AgentOutput } from "../types.js";
 import { INTAKE_SYSTEM_PROMPT } from "./agents/intake.js";
 import { CATALYST_SYSTEM_PROMPT } from "./agents/catalyst.js";
@@ -10,73 +9,83 @@ import { FIRE_SYSTEM_PROMPT } from "./agents/fire.js";
 import { SYNTHESIS_SYSTEM_PROMPT } from "./agents/synthesis.js";
 
 // Default model for Prebloom evaluations
-const DEFAULT_PROVIDER = "anthropic";
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
 interface RunAgentOptions {
   name: string;
   systemPrompt: string;
   userMessage: string;
-  provider?: string;
   model?: string;
 }
 
+interface AnthropicMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface AnthropicResponse {
+  content: Array<{ type: string; text?: string }>;
+}
+
 async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
-  const { name, systemPrompt, userMessage, provider = DEFAULT_PROVIDER, model = DEFAULT_MODEL } = options;
+  const { name, systemPrompt, userMessage, model = DEFAULT_MODEL } = options;
   
   console.log(`🤖 [Prebloom] Running ${name} agent...`);
   const started = Date.now();
 
-  const cfg = loadConfig();
+  // Get API key - prefer env var for standalone Docker deployment
+  let apiKey = process.env.ANTHROPIC_API_KEY;
   
-  // Get API key from Bloem's auth system
-  const authResult = await getApiKeyForModel({
-    cfg,
-    provider,
-    model,
-  });
+  if (!apiKey) {
+    // Fall back to Bloem's auth system
+    const cfg = loadConfig();
+    const authResult = await resolveApiKeyForProvider({
+      cfg,
+      provider: "anthropic",
+    });
+    apiKey = authResult.apiKey;
+  }
   
-  if (!authResult.apiKey) {
-    throw new Error(`No API key found for ${provider}/${model}`);
+  if (!apiKey) {
+    throw new Error(`No API key found for anthropic. Set ANTHROPIC_API_KEY environment variable.`);
   }
 
-  // Get the model instance from pi-ai
-  const modelInstance = getModel(provider, model);
-  
-  if (!modelInstance) {
-    throw new Error(`Model not found: ${provider}/${model}`);
-  }
-
-  // Run the completion
-  const response = await completeSimple(
-    modelInstance,
-    {
+  // Call Anthropic API directly
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      system: systemPrompt,
       messages: [
         {
-          role: "system" as const,
-          content: systemPrompt,
-          timestamp: Date.now(),
-        },
-        {
-          role: "user" as const,
+          role: "user",
           content: userMessage,
-          timestamp: Date.now(),
         },
-      ],
-    },
-    {
-      apiKey: authResult.apiKey,
-      maxTokens: 4096,
-    },
-  );
+      ] as AnthropicMessage[],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = (await response.json()) as AnthropicResponse;
 
   const elapsed = Date.now() - started;
   console.log(`✅ [Prebloom] ${name} agent complete (${elapsed}ms)`);
 
   // Extract text from response
-  const text = typeof response.content === "string" 
-    ? response.content 
-    : response.content?.map((block: any) => block.text || "").join("\n") || "";
+  const text = data.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text ?? "")
+    .join("\n");
 
   return {
     agent: name,
@@ -181,9 +190,12 @@ function parseSynthesisOutput(analysis: string): {
   nextSteps: string[];
   killConditions: string[];
 } {
+  // Safety: ensure analysis is a string
+  const safeAnalysis = analysis || "";
+  
   // Determine decision
   let decision: "PASS" | "FAIL" | "CONDITIONAL_PASS" = "CONDITIONAL_PASS";
-  const upperAnalysis = analysis.toUpperCase();
+  const upperAnalysis = safeAnalysis.toUpperCase();
   
   if (upperAnalysis.includes("VERDICT: PASS") && !upperAnalysis.includes("CONDITIONAL")) {
     decision = "PASS";
@@ -194,26 +206,29 @@ function parseSynthesisOutput(analysis: string): {
   }
 
   // Extract confidence score (look for patterns like "7/10" or "Confidence: 7")
-  const confidenceMatch = analysis.match(/confidence[:\s]*(\d+)\s*\/\s*10|(\d+)\s*\/\s*10/i);
+  const confidenceMatch = safeAnalysis.match(/confidence[:\s]*(\d+)\s*\/\s*10|(\d+)\s*\/\s*10/i);
   const confidence = confidenceMatch 
     ? parseInt(confidenceMatch[1] || confidenceMatch[2]) 
     : 5;
 
   // Extract executive summary (first section after "Executive Summary")
-  const summaryMatch = analysis.match(/executive summary[:\s]*\n+([\s\S]*?)(?=\n\n|\n###|$)/i);
-  const executiveSummary = summaryMatch 
-    ? summaryMatch[1].trim().split("\n")[0] 
-    : analysis.split("\n\n")[0] || "Evaluation complete.";
+  const summaryMatch = safeAnalysis.match(/executive summary[:\s]*\n+([\s\S]*?)(?=\n\n|\n###|$)/i);
+  let executiveSummary = "Evaluation complete.";
+  if (summaryMatch && summaryMatch[1]) {
+    executiveSummary = summaryMatch[1].trim().split("\n")[0] || executiveSummary;
+  } else if (safeAnalysis) {
+    executiveSummary = safeAnalysis.split("\n\n")[0] || executiveSummary;
+  }
 
   // Helper to extract bullet lists
   const extractList = (label: string): string[] => {
     const regex = new RegExp(`${label}[:\\s]*(?:\\([^)]+\\))?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\n|\\n###|$)`, "i");
-    const match = analysis.match(regex);
-    if (!match) return [];
+    const match = safeAnalysis.match(regex);
+    if (!match || !match[1]) return [];
     return match[1]
       .split("\n")
-      .map(line => line.replace(/^[\d\.\-\*•]\s*/, "").trim())
-      .filter(line => line.length > 0 && !line.startsWith("#"))
+      .map((line: string) => line.replace(/^[\d\.\-\*•]\s*/, "").trim())
+      .filter((line: string) => line.length > 0 && !line.startsWith("#"))
       .slice(0, 5);
   };
 
