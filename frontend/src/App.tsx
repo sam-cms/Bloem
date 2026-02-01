@@ -360,9 +360,9 @@ export default function App() {
                 <div className="relative inline-block mb-4">
                   <h1 className="font-display text-5xl md:text-7xl uppercase leading-[0.85] tracking-tighter">
                     <span className="block text-white">Read the</span>
-                    <span className="block text-[var(--mint)] drop-shadow-[0_0_30px_rgba(158,255,191,0.4)]">soil.</span>
+                    <span className="block text-white">soil.</span>
                   </h1>
-                  <span className="absolute -bottom-2 right-0 text-xs md:text-sm text-[var(--mint)] font-mono tracking-widest uppercase">
+                  <span className="absolute -bottom-6 right-0 text-base md:text-lg text-[var(--mint)] font-mono tracking-widest uppercase drop-shadow-[0_0_20px_rgba(158,255,191,0.4)]">
                     Pitch your seed
                   </span>
                 </div>

@@ -1,41 +1,59 @@
 # Prebloom — Startup Idea Validator
 
-**Status:** Active Development (prebloom-dev branch)  
-**Last Updated:** 2026-02-01  
-**URL:** http://192.168.68.57:8080
+> **Status:** Active Development  
+> **Branch:** `landing-page-kronos`  
+> **Last Updated:** 2026-02-01  
+> **URL:** http://192.168.68.57:8080
 
 ---
 
 ## What is Prebloom?
 
-Prebloom is a **startup idea validation tool** built on top of Bloem (a fork of Clawdbot/Moltbot). It uses an AI "council" to evaluate business ideas through multiple lenses — bulls, bears, and synthesizers — to give founders honest, structured feedback before they commit resources.
+Prebloom is an **AI-powered startup idea validation tool**. Founders submit their idea (text or voice), and a "Council" of AI agents evaluates it from multiple perspectives — bulls, bears, and synthesizers — delivering a structured verdict with actionable feedback.
 
-Think of it as a brutally honest YC partner panel simulation for your startup idea.
+**Think:** A brutally honest YC partner panel simulation for your startup idea.
+
+**Macro thesis:** Europe needs more startups to catch up in AI. Prebloom is the filter before the bloom — helping founders separate signal from noise before resources are burned.
 
 ---
 
 ## Current State
 
-### ✅ Working Features
+### ✅ What's Working
 
 | Feature | Description |
 |---------|-------------|
 | **Idea Submission** | Text input with multi-line support |
 | **Voice Input** | Local speech-to-text via Whisper (no cloud APIs) |
-| **Audio Visualizer** | Real-time symmetrical waveform during recording (neon green, Web Audio API) |
+| **Audio Visualizer** | Real-time symmetrical waveform during recording |
 | **Multi-Agent Evaluation** | 4-phase council: Intake → Catalyst (bulls) → Fire (bears) → Synthesis |
 | **Dimension Scoring** | 5 dimensions rated 1-10: Problem Clarity, Market Size, Competition Risk, Execution, Business Model |
 | **Verdict System** | PASS / CONDITIONAL_PASS / FAIL with confidence score |
 | **TL;DR View** | Compact scorecard with ASCII-art bars |
 | **Full Report View** | Expandable sections with markdown rendering |
-| **Branding** | Neon green geometric tulip logo |
+| **Landing Page** | KRONOS design (dark, editorial, neo green accent) |
+| **Language Support** | 13 European languages (auto-detect or explicit) |
+| **Skills System** | Humanizer + transcription cleanup |
 
-### 🏗️ Architecture
+### 🏗️ What's Not Done Yet
+
+See [TODO.md](../TODO.md) for full backlog. Key items:
+
+- Email delivery of reports
+- Persistent history (currently in-memory)
+- Iteration mode (refine and re-evaluate)
+- Share links / PDF export
+- User accounts
+
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Frontend (React)                      │
 │              http://localhost:8080                       │
+│  • Landing page (KRONOS design)                         │
 │  • Voice recording with visualizer                       │
 │  • Idea submission form                                  │
 │  • Report display (TL;DR + Full)                        │
@@ -56,68 +74,10 @@ Think of it as a brutally honest YC partner panel simulation for your startup id
           ▼                              ▼
 ┌──────────────────┐          ┌──────────────────┐
 │  Whisper Service │          │   Anthropic API  │
-│   (faster-whisper)│          │   (Claude)       │
-│   Local STT       │          │   Evaluation     │
+│  (faster-whisper)│          │   (Claude)       │
+│   Local STT      │          │   Evaluation     │
 └──────────────────┘          └──────────────────┘
 ```
-
-### 📁 Key Files
-
-```
-bloem-source/
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx                 # Main UI (input, processing, report views)
-│   │   └── components/
-│   │       └── AudioVisualizer.tsx # Web Audio API frequency visualizer
-│   └── public/
-│       └── prebloom-logo.jpg       # Neon tulip logo (128x128)
-├── src/
-│   └── prebloom/
-│       ├── api/
-│       │   └── http-handler.ts     # REST API endpoints
-│       ├── swarm/
-│       │   └── orchestrator.ts     # Multi-agent evaluation logic
-│       ├── skills/
-│       │   ├── registry.ts         # Skill registration
-│       │   ├── loader.ts           # Skill loading
-│       │   └── apply.ts            # Skill application
-│       ├── audio/
-│       │   └── transcribe.ts       # Whisper integration
-│       └── types.ts                # TypeScript types
-├── whisper-service/
-│   ├── Dockerfile                  # Python + faster-whisper
-│   ├── app.py                      # FastAPI transcription server
-│   └── requirements.txt            # Python deps
-├── docker-compose.prebloom.yml     # Full stack compose
-└── TODO.md                         # Backlog
-```
-
----
-
-## Bloem vs Upstream (Clawdbot/Moltbot)
-
-Bloem is a fork of Clawdbot (now Moltbot). Here's what Prebloom adds vs the upstream:
-
-| Component | Upstream (Moltbot) | Prebloom Addition |
-|-----------|-------------------|-------------------|
-| **Core** | Personal AI assistant, multi-channel messaging | — |
-| **Prebloom API** | — | `/prebloom/*` REST endpoints for idea evaluation |
-| **Multi-Agent Swarm** | — | Intake + Catalyst + Fire + Synthesis orchestration |
-| **Whisper Service** | — | Local faster-whisper Docker service for STT |
-| **Frontend** | WebChat UI | Custom React app with voice input + visualizer |
-| **Skills System** | Bundled skills | Extended with humanizer, transcription hooks |
-
-The upstream Moltbot has:
-- Multi-channel inbox (WhatsApp, Telegram, Discord, Slack, etc.)
-- Browser control
-- Canvas + A2UI
-- Voice Wake + Talk Mode
-- Node system (iOS/Android/macOS)
-- Cron + webhooks
-- Full agent workspace with memory
-
-Prebloom runs *on top of* Bloem's Gateway, using it as the backend runtime while adding the evaluation-specific logic.
 
 ---
 
@@ -132,10 +92,47 @@ Prebloom runs *on top of* Bloem's Gateway, using it as the backend runtime while
 
 ---
 
+## Key Files
+
+```
+bloem-source/
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx                 # Main UI (landing, input, processing, report)
+│   │   └── components/
+│   │       └── AudioVisualizer.tsx # Web Audio API frequency visualizer
+│   └── public/
+│       └── prebloom-logo.jpg       # Neon tulip logo
+├── src/
+│   └── prebloom/
+│       ├── api/
+│       │   └── http-handler.ts     # REST API endpoints
+│       ├── swarm/
+│       │   ├── orchestrator.ts     # Multi-agent evaluation logic
+│       │   └── agents/             # Individual agent prompts
+│       ├── skills/
+│       │   ├── registry.ts         # Skill registration
+│       │   ├── loader.ts           # Skill loading
+│       │   └── apply.ts            # Skill application
+│       ├── audio/
+│       │   └── transcribe.ts       # Whisper integration
+│       └── types.ts                # TypeScript types
+├── whisper-service/
+│   ├── Dockerfile                  # Python + faster-whisper
+│   ├── app.py                      # FastAPI transcription server
+│   └── requirements.txt            # Python deps
+├── docker-compose.prebloom.yml     # Full stack compose
+├── TODO.md                         # Backlog & roadmap
+└── docs/
+    └── PREBLOOM.md                 # This file
+```
+
+---
+
 ## Running Locally
 
 ```bash
-cd /home/bruce/Projects/bloem-source
+cd ~/Projects/bloem-source
 
 # Set Anthropic API key
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
@@ -147,33 +144,36 @@ docker compose -f docker-compose.prebloom.yml up --build
 open http://localhost:8080
 ```
 
+### Quick Commands
+
+```bash
+# Rebuild frontend only
+docker compose -f docker-compose.prebloom.yml build frontend
+docker compose -f docker-compose.prebloom.yml up -d frontend
+
+# View logs
+docker logs bloem-source-backend-1 -f
+
+# Check health
+curl http://localhost:8080/prebloom/health
+
+# List skills
+curl http://localhost:8080/prebloom/skills
+```
+
 ---
 
-## Backlog
+## Branding
 
-See [TODO.md](../TODO.md) for the current backlog.
-
-### Planned Features
-
-- [ ] **Self-learning skill** — Capture learnings, errors, corrections for continuous improvement
-- [ ] **Email delivery** — Send reports to user's email
-- [ ] **History** — Persist and browse past evaluations
-- [ ] **Iteration mode** — Refine idea based on feedback
-- [ ] **Export** — PDF/Notion/Markdown export
-- [ ] **Competitive analysis** — Auto-research competitors during evaluation
-
----
-
-## Voice Input Details
-
-- **Recording:** MediaRecorder API (browser-native)
-- **Visualization:** Web Audio API AnalyserNode → Canvas 2D
-- **Transcription:** faster-whisper (local, no cloud)
-- **Model:** Whisper `small` by default (~460MB)
-- **Controls:**
-  - Long-press spacebar (500ms) to start recording
-  - Tap spacebar to stop
-  - Click mic button to toggle
+| Element | Value |
+|---------|-------|
+| **Name** | Prebloom |
+| **Tagline (hero)** | "Test the ground." |
+| **Tagline (form)** | "Read the soil. Pitch your seed." |
+| **Colors** | Deep black (#050505), Neo green (#22c55e), Mint, Coral, Gold |
+| **Fonts** | Clash Display, General Sans, JetBrains Mono |
+| **Logo** | Neon geometric tulip |
+| **Theme** | Dutch tulip heritage, startup ecosystem as garden |
 
 ---
 
@@ -190,20 +190,34 @@ See [TODO.md](../TODO.md) for the current backlog.
 
 ---
 
+## Bloem vs Upstream (Moltbot)
+
+Bloem is a fork of Moltbot (formerly Clawdbot). Prebloom adds:
+
+| Component | Upstream (Moltbot) | Prebloom Addition |
+|-----------|-------------------|-------------------|
+| Core | Personal AI assistant | — |
+| Prebloom API | — | `/prebloom/*` REST endpoints |
+| Multi-Agent Swarm | — | Intake + Catalyst + Fire + Synthesis |
+| Whisper Service | — | Local faster-whisper container |
+| Frontend | WebChat UI | Custom React app with voice + visualizer |
+| Skills | Bundled skills | Extended with humanizer, transcription |
+
+---
+
 ## Contributing
 
-Branch: `prebloom-dev`  
-Repo: `github.com:sam-cms/Bloem.git`
-
 ```bash
-git checkout prebloom-dev
+git checkout landing-page-kronos
 # Make changes
 git commit -m "feat(prebloom): ..."
 git push
 ```
 
-Rebuild after changes:
-```bash
-docker compose -f docker-compose.prebloom.yml build frontend
-docker compose -f docker-compose.prebloom.yml up -d frontend
-```
+---
+
+## Links
+
+- **Repo:** github.com/sam-cms/Bloem
+- **Backlog:** [TODO.md](../TODO.md)
+- **Name validation:** [memory/prebloom-validation.md](../../clawd/memory/prebloom-validation.md)
