@@ -304,6 +304,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#050505]">
+      <div className="mosaic-grid" />
       <div className="light-leak light-leak-orange" />
       <div className="light-leak light-leak-blue" />
       
@@ -357,10 +358,10 @@ export default function App() {
                   </div>
                 )}
                 <div className="mb-2">
-                  <h1 className="text-4xl md:text-5xl text-white/90 font-light tracking-tight leading-tight">
+                  <h1 className="text-4xl md:text-5xl text-white font-light tracking-tight leading-tight">
                     Test the ground.
                   </h1>
-                  <p className="text-xl md:text-2xl text-white/90 font-light mt-2">
+                  <p className="text-xl md:text-2xl text-[#22c55e] font-light mt-2">
                     Pitch your seed.
                   </p>
                 </div>
@@ -390,7 +391,7 @@ export default function App() {
                     placeholder="e.g., I'm building an AI tool that helps photographers get feedback before submitting to galleries..."
                     rows={6}
                     disabled={recordingState === 'transcribing'}
-                    className={`w-full px-5 py-4 pr-14 bg-[#0a0a0a] border-2 text-white placeholder:text-white/20 placeholder:text-sm placeholder:font-light focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-white/10 focus:border-[#22c55e]/60 ${
+                    className={`w-full px-5 py-4 pr-14 bg-[#0a0a0a] border-2 text-white placeholder:text-white/25 placeholder:font-light placeholder:normal-case focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-white/10 focus:border-[#22c55e]/60 ${
                       recordingState === 'recording' ? 'opacity-60' : ''
                     }`}
                   />
@@ -428,16 +429,16 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <p className="text-white/20 text-[10px] flex items-center gap-2">
+                  <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
                     {recordingState === 'recording' ? (
                       <>
-                        <span className="w-2 h-2 bg-[#22c55e] rounded-full animate-pulse" />
-                        <span className="text-white/40">Recording... tap space to stop</span>
+                        <span className="w-2 h-2 bg-[var(--accent)] rounded-full animate-pulse" />
+                        <span>Recording... tap space to stop</span>
                       </>
                     ) : recordingState === 'transcribing' ? (
                       <>
                         <span className="spinner-small" />
-                        <span className="text-white/40">Transcribing audio...</span>
+                        <span>Transcribing audio...</span>
                       </>
                     ) : (
                       'Long-press space or hold click to talk'
