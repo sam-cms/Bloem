@@ -20,6 +20,19 @@
   --mint: #9EFFBF;
   --gold: #F4D35E;
   
+  /* Legacy compatibility + semantic mapping */
+  --bg-primary: #050505;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #0f0f0f;
+  --fg-primary: #FFFFFF;
+  --fg-muted: rgba(255, 255, 255, 0.5);
+  --fg-subtle: rgba(255, 255, 255, 0.25);
+  --accent: #22c55e;
+  --accent-glow: rgba(34, 197, 94, 0.15);
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+  
   /* Borders - Ultra thin */
   --border: rgba(255, 255, 255, 0.05);
   --border-hover: rgba(255, 255, 255, 0.2);

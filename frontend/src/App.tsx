@@ -845,6 +845,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           subtitle="The believers — the bull case"
           content={verdict.catalyst.analysis}
           score={dimensions.marketSize}
+          accentColor="#4ade80"
           expanded={expandedSections.has('catalyst')}
           onToggle={() => toggleSection('catalyst')}
         />
@@ -855,6 +856,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           subtitle="The skeptics — stress-testing"
           content={verdict.fire.analysis}
           score={dimensions.competitionRisk}
+          accentColor="#f87171"
           expanded={expandedSections.has('fire')}
           onToggle={() => toggleSection('fire')}
         />
@@ -865,6 +867,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
           subtitle="Final synthesis"
           content={verdict.synthesis.analysis}
           score={verdict.confidence}
+          accentColor="var(--accent)"
           expanded={expandedSections.has('synthesis')}
           onToggle={() => toggleSection('synthesis')}
         />
@@ -909,6 +912,7 @@ function ReportSection({
   subtitle,
   content,
   score,
+  accentColor = 'var(--accent)',
   expanded,
   onToggle,
 }: {
@@ -917,6 +921,7 @@ function ReportSection({
   subtitle: string
   content: string
   score?: number
+  accentColor?: string
   expanded: boolean
   onToggle: () => void
 }) {
@@ -970,14 +975,14 @@ function cleanText(text: string): string {
     .trim()
 }
 
-// Score bar component - renders ████████░░ style bars (monochrome accent)
+// Score bar component - renders ████████░░ style bars
 function ScoreBar({ score, max = 10, showNumber = true }: { score: number; max?: number; showNumber?: boolean }) {
   const filled = Math.round((score / max) * 10)
   const empty = 10 - filled
   
   return (
     <span className="font-mono text-sm inline-flex items-center gap-2">
-      <span className="text-[var(--mint)]">
+      <span className="text-[var(--accent)]">
         {'█'.repeat(filled)}
         <span className="text-white/20">{'░'.repeat(empty)}</span>
       </span>
