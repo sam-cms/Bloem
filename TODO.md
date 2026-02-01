@@ -91,6 +91,9 @@ Focus: Landing page polish + prepare for beta launch
 - [x] Landing page hero: "Read the Soil" all white, "Pitch your seed" mint glow
 - [x] Positioned tagline below hero text
 - [x] Project documentation and status updates
+- [x] Whisper model upgraded: small → medium (better accuracy)
+- [x] Cleanup model: added Ollama/Llama option with Haiku fallback
+- [x] Added USE_LOCAL_CLEANUP toggle for local vs API cleanup
 
 ### 2026-01-31
 - [x] Voice input with local Whisper transcription
