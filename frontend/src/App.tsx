@@ -970,9 +970,10 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 nav-blend">
         <div className="max-w-7xl mx-auto px-8 md:px-16 py-6 flex justify-between items-center">
           {/* Logo */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-8 h-8 object-contain" />
             <span className="font-display text-2xl font-bold tracking-tight">
-              Prebloom <span className="text-[var(--mint)]">™</span>
+              Prebloom
             </span>
           </div>
           
@@ -992,7 +993,7 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           {/* CTA */}
           <button
             onClick={onGetStarted}
-            className="px-6 py-2 border border-white/20 font-mono text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+            className="px-6 py-3 bg-[var(--mint)] text-black font-mono text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-white transition-all shadow-[0_0_20px_rgba(158,255,191,0.3)]"
           >
             Submit idea
           </button>
@@ -1014,7 +1015,7 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
             {/* Main Headline */}
             <h1 className="font-display text-[12vw] md:text-[15vw] uppercase leading-[0.85] tracking-tighter mb-8">
               <span className="block">Test the</span>
-              <span className="block text-[var(--mint)]">ground.</span>
+              <span className="block text-[var(--mint)] drop-shadow-[0_0_30px_rgba(158,255,191,0.4)]">ground.</span>
             </h1>
           </div>
           
@@ -1208,7 +1209,7 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           
           <button
             onClick={onGetStarted}
-            className="w-full py-6 bg-white text-black font-display uppercase font-bold tracking-widest hover:bg-[var(--mint)] transition-colors"
+            className="w-full py-6 bg-[var(--mint)] text-black font-display uppercase font-bold tracking-widest hover:bg-white transition-all shadow-[0_0_40px_rgba(158,255,191,0.4)] hover:shadow-[0_0_60px_rgba(158,255,191,0.6)]"
           >
             Submit your idea
           </button>
