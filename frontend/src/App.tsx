@@ -33,14 +33,14 @@ const DIMENSION_CONFIG: { key: keyof DimensionScores; label: string }[] = [
   { key: 'businessModel', label: 'Business Model' },
 ]
 
-type AppState = 'input' | 'processing' | 'report'
+type AppState = 'landing' | 'input' | 'processing' | 'report'
 type ReportView = 'tldr' | 'full'
 type RecordingState = 'idle' | 'recording' | 'transcribing'
 
 const API_BASE = ''
 
 export default function App() {
-  const [state, setState] = useState<AppState>('input')
+  const [state, setState] = useState<AppState>('landing')
   const [idea, setIdea] = useState('')
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -286,6 +286,10 @@ export default function App() {
     }
   }
 
+  if (state === 'landing') {
+    return <LandingPageKronos onGetStarted={() => setState('input')} />
+  }
+
   if (state === 'report' && verdict) {
     return (
       <ReportContainer 
@@ -300,7 +304,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="light-leak light-leak-green w-[500px] h-[500px] -top-32 -right-32 fixed opacity-30" />
+      <div className="light-leak light-leak-orange" />
+      <div className="light-leak light-leak-blue" />
       
       <header className="px-6 py-6 border-b border-[var(--border)]">
         <div className="max-w-4xl mx-auto flex items-center gap-2">
@@ -943,11 +948,305 @@ function ScoreBar({ score, max = 10, showNumber = true }: { score: number; max?:
   
   return (
     <span className="font-mono text-sm inline-flex items-center gap-2">
-      <span className="text-[var(--accent)]">
+      <span className="text-[var(--mint)]">
         {'█'.repeat(filled)}
-        <span className="text-[var(--fg-subtle)]">{'░'.repeat(empty)}</span>
+        <span className="text-white/20">{'░'.repeat(empty)}</span>
       </span>
-      {showNumber && <span className="text-[var(--fg-muted)] w-4 text-right">{score}</span>}
+      {showNumber && <span className="text-white/40 w-4 text-right">{score}</span>}
     </span>
+  )
+}
+
+// KRONOS: Technical Midnight Editorial Landing Page
+function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
+  return (
+    <div className="min-h-screen bg-[var(--deep-black)] relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="mosaic-grid" />
+      <div className="light-leak light-leak-orange" />
+      <div className="light-leak light-leak-blue" />
+      
+      {/* Fixed Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 nav-blend">
+        <div className="max-w-7xl mx-auto px-8 md:px-16 py-6 flex justify-between items-center">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <span className="font-display text-2xl font-bold tracking-tight">
+              Prebloom <span className="text-[var(--mint)]">™</span>
+            </span>
+          </div>
+          
+          {/* Nav Links - Hidden on mobile */}
+          <nav className="hidden md:flex items-center gap-12">
+            <a href="#how" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              01. How it works
+            </a>
+            <a href="#features" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              02. Features
+            </a>
+            <a href="#who" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              03. Who it's for
+            </a>
+          </nav>
+          
+          {/* CTA */}
+          <button
+            onClick={onGetStarted}
+            className="px-6 py-2 border border-white/20 font-mono text-[10px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+          >
+            Submit idea
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="min-h-screen flex flex-col justify-center pt-24 px-8 md:px-16 relative z-10">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="reveal-up">
+            {/* Label */}
+            <div className="flex items-center gap-4 mb-8">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)]">
+                Startup idea validation
+              </span>
+              <div className="h-px w-16 bg-white/20"></div>
+            </div>
+            
+            {/* Main Headline */}
+            <h1 className="font-display text-[12vw] md:text-[15vw] uppercase leading-[0.85] tracking-tighter mb-8">
+              <span className="block">Test the</span>
+              <span className="block text-[var(--mint)]">ground.</span>
+            </h1>
+          </div>
+          
+          {/* Bottom metadata */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mt-12 gap-8 reveal-up stagger-2">
+            <div className="flex gap-12">
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-2">System</span>
+                <span className="font-mono text-sm text-[var(--coral)]">Multi-Agent</span>
+              </div>
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-2">Version</span>
+                <span className="font-mono text-sm">2026.1</span>
+              </div>
+            </div>
+            
+            <p className="max-w-xs text-sm text-white/40 font-light leading-relaxed reveal-up stagger-3">
+              A multi-agent system that analyzes startup ideas from multiple perspectives and delivers a structured verdict.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Grid */}
+      <section className="stats-grid bg-black/50 backdrop-blur-sm relative z-10">
+        <div className="p-8 md:p-12 reveal-up stagger-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-4">Perspectives</span>
+          <span className="font-display text-3xl">4</span>
+        </div>
+        <div className="p-8 md:p-12 reveal-up stagger-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-4">Languages</span>
+          <span className="font-display text-3xl">13+</span>
+        </div>
+        <div className="p-8 md:p-12 reveal-up stagger-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-4">Analysis Time</span>
+          <span className="font-display text-3xl">~90s</span>
+        </div>
+        <div className="p-8 md:p-12 reveal-up stagger-4">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 block mb-4">Verdict Type</span>
+          <span className="font-display text-3xl text-[var(--mint)]">STRUCTURED</span>
+        </div>
+      </section>
+
+      {/* Editorial Content Block */}
+      <section className="px-8 md:px-16 py-32 md:py-48 relative z-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12">
+          {/* Sticky Heading */}
+          <div className="md:col-span-3 md:sticky md:top-32 h-fit">
+            <span className="font-mono text-[12px] text-[var(--gold)] uppercase tracking-[0.2em] block mb-6">The Problem</span>
+            <h2 className="font-display text-4xl md:text-5xl uppercase tracking-tighter leading-[0.9]">
+              Ideas are<br />everywhere.
+            </h2>
+          </div>
+          
+          {/* Content Column */}
+          <div className="md:col-start-6 md:col-span-7">
+            <p className="text-xl md:text-2xl font-light text-white/80 leading-[1.6] mb-12">
+              AI made that easy. Knowing which ones are worth building — that's the hard part. Founders waste months on the wrong thing. Investors miss signal in the noise. Incubators can't keep up.
+            </p>
+            <p className="text-xl md:text-2xl font-light text-white/80 leading-[1.6] mb-12">
+              Everything is bubbling. You need clarity before you plant.
+            </p>
+            
+            <a href="#how" className="group inline-flex items-center gap-4 border-b border-white/20 pb-2 hover:border-white/40 transition-colors">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em]">See how it works</span>
+              <svg className="w-4 h-4 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how" className="border-t border-white/5 relative z-10">
+        <div className="px-8 md:px-16 py-16">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)]">03. Process</span>
+        </div>
+        
+        <div className="stats-grid">
+          <div className="p-8 md:p-12">
+            <span className="font-display text-6xl text-white/10 block mb-4">01</span>
+            <h3 className="font-display text-2xl uppercase mb-4">Submit</h3>
+            <p className="text-sm text-white/40 font-light leading-relaxed">
+              Describe your idea in plain language. Problem, solution, market, model.
+            </p>
+          </div>
+          <div className="p-8 md:p-12">
+            <span className="font-display text-6xl text-white/10 block mb-4">02</span>
+            <h3 className="font-display text-2xl uppercase mb-4">Analysis</h3>
+            <p className="text-sm text-white/40 font-light leading-relaxed">
+              Multi-perspective evaluation runs automatically across four specialized agents.
+            </p>
+          </div>
+          <div className="p-8 md:p-12">
+            <span className="font-display text-6xl text-white/10 block mb-4">03</span>
+            <h3 className="font-display text-2xl uppercase mb-4">Verdict</h3>
+            <p className="text-sm text-white/40 font-light leading-relaxed">
+              PASS, CONDITIONAL, or FAIL — with strengths, risks, and next steps.
+            </p>
+          </div>
+          <div className="p-8 md:p-12">
+            <span className="font-display text-6xl text-white/10 block mb-4">04</span>
+            <h3 className="font-display text-2xl uppercase mb-4">Iterate</h3>
+            <p className="text-sm text-white/40 font-light leading-relaxed">
+              Refine your idea based on feedback. Submit again when ready.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Bento Feature Grid */}
+      <section id="features" className="px-8 md:px-16 py-32 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)] block mb-8">04. What you get</span>
+          
+          <div className="bento-grid grid-cols-1 md:grid-cols-2">
+            <div className="p-12 accent-forest">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--forest)] font-bold block mb-4">Verdict</span>
+              <h3 className="font-display text-3xl uppercase mb-6">Clear Decision</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                PASS / CONDITIONAL / FAIL with confidence score. No ambiguity.
+              </p>
+            </div>
+            <div className="p-12 accent-coral">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--coral)] font-bold block mb-4">Strengths</span>
+              <h3 className="font-display text-3xl uppercase mb-6">Key Advantages</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                What's working in your favor. Your unfair advantages exposed.
+              </p>
+            </div>
+            <div className="p-12 accent-mint">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--mint)] font-bold block mb-4">Risks</span>
+              <h3 className="font-display text-3xl uppercase mb-6">Kill Conditions</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                What could kill this idea. Critical risks you need to address.
+              </p>
+            </div>
+            <div className="p-12 accent-gold">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)] font-bold block mb-4">Next Steps</span>
+              <h3 className="font-display text-3xl uppercase mb-6">Action Plan</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                Concrete recommendations. What to do next to validate or pivot.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Who It's For */}
+      <section id="who" className="border-t border-white/5 px-8 md:px-16 py-32 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--gold)] block mb-8">05. Use cases</span>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5">
+            <div className="bg-[var(--deep-black)] p-12">
+              <h3 className="font-display text-2xl uppercase mb-4">Founders</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                Get clarity before you build. Validate before you invest months of your life.
+              </p>
+            </div>
+            <div className="bg-[var(--deep-black)] p-12">
+              <h3 className="font-display text-2xl uppercase mb-4">Investors</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                Screen deal flow at scale. First-pass analysis before the meeting.
+              </p>
+            </div>
+            <div className="bg-[var(--deep-black)] p-12">
+              <h3 className="font-display text-2xl uppercase mb-4">Incubators</h3>
+              <p className="text-sm text-white/40 leading-relaxed font-light">
+                Evaluate applicants systematically. Consistent, structured feedback.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Form CTA */}
+      <section className="py-32 px-8 flex justify-center items-center relative z-10">
+        <div className="max-w-[640px] w-full p-12 border border-white/10 corner-markers relative">
+          <div className="text-center mb-12">
+            <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--mint)] block mb-4">Ready?</span>
+            <h2 className="font-display text-4xl uppercase tracking-tighter">
+              Test the ground.<br />Pitch your seed.
+            </h2>
+          </div>
+          
+          <p className="text-center text-white/40 font-mono text-sm mb-12">
+            Every seed starts with an idea.<br />Describe yours. We'll dig into the rest.
+          </p>
+          
+          <button
+            onClick={onGetStarted}
+            className="w-full py-6 bg-white text-black font-display uppercase font-bold tracking-widest hover:bg-[var(--mint)] transition-colors"
+          >
+            Submit your idea
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-[var(--vantablack)] pt-48 pb-12 px-8 md:px-16 relative overflow-hidden">
+        {/* Ghost Brand Mark */}
+        <div className="ghost-text">PREBLOOM</div>
+        
+        {/* Email CTA */}
+        <a 
+          href="mailto:hello@prebloom.ai" 
+          className="block text-center font-display text-4xl md:text-8xl font-bold uppercase tracking-tighter border-b border-white/10 pb-4 mb-24 hover:opacity-50 transition-opacity relative z-10"
+        >
+          hello@prebloom.ai
+        </a>
+        
+        {/* Footer Info */}
+        <div className="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
+          <span className="font-mono text-[10px] text-white/40 uppercase tracking-[0.2em]">
+            © 2026 Prebloom. Amsterdam 🌷
+          </span>
+          
+          <div className="flex gap-12">
+            <a href="#" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--mint)] transition-colors">
+              Twitter
+            </a>
+            <a href="#" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--mint)] transition-colors">
+              Github
+            </a>
+            <a href="#" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--mint)] transition-colors">
+              Docs
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }
