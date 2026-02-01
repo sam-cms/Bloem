@@ -9,7 +9,8 @@ import { resolveApiKeyForProvider } from "../../agents/model-auth.js";
 import type { PrebloomSkill, SkillApplicationContext, SkillApplicationResult } from "./types.js";
 import { getSkill } from "./registry.js";
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+// Use Haiku for fast, cheap skill application (cleanup, formatting)
+const DEFAULT_MODEL = "claude-3-5-haiku-20241022";
 
 interface AnthropicResponse {
   content: Array<{ type: string; text?: string }>;

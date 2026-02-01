@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download model during build (small model ~460MB)
+# Pre-download model during build (medium model ~1.5GB)
 # This caches the model in the image for faster container starts
-ARG WHISPER_MODEL=small
+ARG WHISPER_MODEL=medium
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')"
 
 COPY app.py .
