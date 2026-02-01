@@ -7,6 +7,7 @@ interface AudioVisualizerProps {
   height?: number
   barCount?: number
   accentColor?: string
+  symmetrical?: boolean
 }
 
 export default function AudioVisualizer({
@@ -16,6 +17,7 @@ export default function AudioVisualizer({
   height = 40,
   barCount = 32,
   accentColor = '#00ff88',
+  symmetrical = false,
 }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number | null>(null)
@@ -77,31 +79,50 @@ export default function AudioVisualizer({
 
       ctx.clearRect(0, 0, width, height)
 
-      const barWidth = (width / barCount) * 0.7
-      const gap = (width / barCount) * 0.3
+      // For symmetrical mode, we draw from center outward (half bars on each side)
+      const halfBars = symmetrical ? Math.floor(barCount / 2) : barCount
+      const totalBars = symmetrical ? halfBars * 2 : barCount
+      const barWidth = (width / totalBars) * 0.7
+      const gap = (width / totalBars) * 0.3
       const centerY = height / 2
+      const centerX = width / 2
 
-      for (let i = 0; i < barCount; i++) {
+      for (let i = 0; i < halfBars; i++) {
         // Map bar index to frequency data (skip very low frequencies)
-        const dataIndex = Math.floor((i / barCount) * (bufferLength * 0.8)) + 2
+        const dataIndex = Math.floor((i / halfBars) * (bufferLength * 0.6)) + 2
         const value = dataArray[dataIndex] || 0
         
         // Normalize and add minimum height
         const normalizedValue = value / 255
-        const barHeight = Math.max(2, normalizedValue * (height * 0.9))
-
-        const x = i * (barWidth + gap)
-        const y = centerY - barHeight / 2
+        const barHeight = Math.max(2, normalizedValue * (height * 0.85))
 
         // Gradient from accent color with varying opacity
-        const alpha = 0.4 + normalizedValue * 0.6
+        const alpha = 0.5 + normalizedValue * 0.5
         ctx.fillStyle = accentColor + Math.round(alpha * 255).toString(16).padStart(2, '0')
         
-        // Draw rounded bar
         const radius = barWidth / 2
-        ctx.beginPath()
-        ctx.roundRect(x, y, barWidth, barHeight, radius)
-        ctx.fill()
+
+        if (symmetrical) {
+          // Draw mirrored bars from center
+          const offsetFromCenter = i * (barWidth + gap) + gap / 2
+          
+          // Right side
+          const xRight = centerX + offsetFromCenter
+          ctx.beginPath()
+          ctx.roundRect(xRight, centerY - barHeight / 2, barWidth, barHeight, radius)
+          ctx.fill()
+          
+          // Left side (mirrored)
+          const xLeft = centerX - offsetFromCenter - barWidth
+          ctx.beginPath()
+          ctx.roundRect(xLeft, centerY - barHeight / 2, barWidth, barHeight, radius)
+          ctx.fill()
+        } else {
+          const x = i * (barWidth + gap)
+          ctx.beginPath()
+          ctx.roundRect(x, centerY - barHeight / 2, barWidth, barHeight, radius)
+          ctx.fill()
+        }
       }
 
       animationRef.current = requestAnimationFrame(draw)
@@ -117,7 +138,7 @@ export default function AudioVisualizer({
         audioContextRef.current.close()
       }
     }
-  }, [stream, isActive, width, height, barCount, accentColor])
+  }, [stream, isActive, width, height, barCount, accentColor, symmetrical])
 
   if (!isActive) return null
 

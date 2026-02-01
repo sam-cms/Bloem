@@ -314,6 +314,19 @@ export default function App() {
           {state === 'input' && (
             <div className="reveal-up">
               <div className="mb-12 text-center">
+                {recordingState === 'recording' && (
+                  <div className="flex justify-center mb-6">
+                    <AudioVisualizer 
+                      stream={audioStream} 
+                      isActive={recordingState === 'recording'}
+                      width={280}
+                      height={48}
+                      barCount={40}
+                      accentColor="#00ff88"
+                      symmetrical={true}
+                    />
+                  </div>
+                )}
                 <p className="label mb-4 text-[var(--accent)]">Startup Idea Validator</p>
                 <h1 className="font-display text-4xl md:text-5xl text-white mb-6">
                   BRIEF THE COUNCIL
@@ -385,29 +398,21 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
                     {recordingState === 'recording' ? (
                       <>
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
-                        <AudioVisualizer 
-                          stream={audioStream} 
-                          isActive={recordingState === 'recording'}
-                          width={120}
-                          height={24}
-                          barCount={20}
-                          accentColor="#ef4444"
-                        />
-                        <span className="text-[var(--fg-subtle)] text-xs">tap space to stop</span>
+                        <span className="w-2 h-2 bg-[var(--accent)] rounded-full animate-pulse" />
+                        <span>Recording... tap space to stop</span>
                       </>
                     ) : recordingState === 'transcribing' ? (
-                      <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
+                      <>
                         <span className="spinner-small" />
                         <span>Transcribing audio...</span>
-                      </p>
+                      </>
                     ) : (
-                      <p className="text-[var(--fg-subtle)] text-xs">Long-press space or hold click to talk</p>
+                      'Long-press space or hold click to talk'
                     )}
-                  </div>
+                  </p>
                   <button
                     type="submit"
                     disabled={!idea.trim()}
