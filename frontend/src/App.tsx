@@ -1,6 +1,27 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
+import mermaid from 'mermaid'
 import AudioVisualizer from './components/AudioVisualizer'
+
+// Initialize mermaid with dark theme
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: {
+    primaryColor: '#22c55e',
+    primaryTextColor: '#fff',
+    primaryBorderColor: '#22c55e',
+    lineColor: '#666',
+    secondaryColor: '#1a1a1a',
+    tertiaryColor: '#0a0a0a',
+    background: '#050505',
+    mainBkg: '#0a0a0a',
+    nodeBorder: '#333',
+    clusterBkg: '#111',
+    titleColor: '#fff',
+    edgeLabelBackground: '#111',
+  },
+})
 
 type DimensionScores = {
   problemClarity: number
@@ -34,7 +55,7 @@ const DIMENSION_CONFIG: { key: keyof DimensionScores; label: string }[] = [
 ]
 
 type AppState = 'landing' | 'input' | 'processing' | 'report'
-type ReportView = 'tldr' | 'full'
+type ReportView = 'tldr' | 'full' | 'flow'
 type RecordingState = 'idle' | 'recording' | 'transcribing'
 
 const API_BASE = ''
@@ -559,6 +580,16 @@ function ReportContainer({
             >
               TL;DR
             </button>
+            <button
+              onClick={() => onViewChange('flow')}
+              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
+                view === 'flow' 
+                  ? 'bg-[var(--accent)] text-black' 
+                  : 'text-[var(--fg-muted)] hover:text-white'
+              }`}
+            >
+              Pipeline
+            </button>
           </div>
 
           <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
@@ -569,6 +600,8 @@ function ReportContainer({
 
       {view === 'tldr' ? (
         <TLDRView verdict={verdict} onExpand={() => onViewChange('full')} />
+      ) : view === 'flow' ? (
+        <PipelineFlowView verdict={verdict} onViewChange={onViewChange} />
       ) : (
         <FullReportView verdict={verdict} idea={idea} onReset={onReset} />
       )}
@@ -698,6 +731,184 @@ function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => voi
         >
           [ View Full Report ]
         </button>
+      </div>
+    </main>
+  )
+}
+
+// Pipeline Flow View - Mermaid diagram showing evaluation flow
+function PipelineFlowView({ verdict, onViewChange }: { verdict: Verdict; onViewChange: (view: ReportView) => void }) {
+  const mermaidRef = useRef<HTMLDivElement>(null)
+  const [rendered, setRendered] = useState(false)
+
+  // Calculate color based on score (0-10)
+  const getScoreColor = (score: number) => {
+    if (score >= 7) return '#22c55e' // green
+    if (score >= 5) return '#f59e0b' // yellow/amber
+    return '#ef4444' // red
+  }
+
+  // Get verdict color
+  const getVerdictColor = () => {
+    switch (verdict.decision) {
+      case 'PASS': return '#22c55e'
+      case 'CONDITIONAL_PASS': return '#f59e0b'
+      case 'FAIL': return '#ef4444'
+      default: return '#666'
+    }
+  }
+
+  const dimensions = verdict.dimensions || {
+    problemClarity: 5,
+    marketSize: 5,
+    competitionRisk: 5,
+    execution: 5,
+    businessModel: 5,
+  }
+
+  // Average scores for each phase
+  const intakeScore = dimensions.problemClarity
+  const catalystScore = Math.round((dimensions.marketSize + dimensions.businessModel) / 2)
+  const fireScore = Math.round((dimensions.competitionRisk + dimensions.execution) / 2)
+  const synthesisScore = verdict.confidence
+
+  // Generate Mermaid diagram
+  const mermaidCode = `
+graph TD
+    A[/"💡 Your Idea"/] --> B["📥 INTAKE<br/>Problem Clarity: ${intakeScore}/10"]
+    B --> C["🚀 CATALYST SQUAD<br/>Bull Case: ${catalystScore}/10"]
+    B --> D["🔥 FIRE SQUAD<br/>Bear Case: ${fireScore}/10"]
+    C --> E["⚖️ SYNTHESIS<br/>Confidence: ${synthesisScore}/10"]
+    D --> E
+    E --> F["${verdict.decision === 'PASS' ? '✅' : verdict.decision === 'CONDITIONAL_PASS' ? '⚠️' : '❌'} ${verdict.decision.replace('_', ' ')}"]
+    
+    style A fill:#1a1a1a,stroke:#666,color:#fff
+    style B fill:#1a1a1a,stroke:${getScoreColor(intakeScore)},color:#fff
+    style C fill:#1a1a1a,stroke:${getScoreColor(catalystScore)},color:#fff
+    style D fill:#1a1a1a,stroke:${getScoreColor(fireScore)},color:#fff
+    style E fill:#1a1a1a,stroke:${getScoreColor(synthesisScore)},color:#fff
+    style F fill:${getVerdictColor()}20,stroke:${getVerdictColor()},color:#fff
+  `.trim()
+
+  useEffect(() => {
+    const renderDiagram = async () => {
+      if (mermaidRef.current && !rendered) {
+        try {
+          mermaidRef.current.innerHTML = ''
+          const { svg } = await mermaid.render('pipeline-diagram', mermaidCode)
+          mermaidRef.current.innerHTML = svg
+          setRendered(true)
+        } catch (err) {
+          console.error('Mermaid render error:', err)
+          mermaidRef.current.innerHTML = '<p class="text-red-500">Failed to render diagram</p>'
+        }
+      }
+    }
+    renderDiagram()
+  }, [mermaidCode, rendered])
+
+  // Phase explanations
+  const phases = [
+    {
+      name: 'Intake',
+      score: intakeScore,
+      description: 'How well is the problem defined?',
+      detail: verdict.intake?.analysis?.slice(0, 200) || 'Problem analysis complete.',
+    },
+    {
+      name: 'Catalyst Squad',
+      score: catalystScore,
+      description: 'The believers — what makes this idea strong?',
+      detail: verdict.catalyst?.analysis?.slice(0, 200) || 'Opportunities identified.',
+    },
+    {
+      name: 'Fire Squad',
+      score: fireScore,
+      description: 'The skeptics — what could kill this?',
+      detail: verdict.fire?.analysis?.slice(0, 200) || 'Risks assessed.',
+    },
+    {
+      name: 'Synthesis',
+      score: synthesisScore,
+      description: 'Final deliberation and verdict',
+      detail: verdict.synthesis?.analysis?.slice(0, 200) || verdict.executiveSummary?.slice(0, 200) || 'Evaluation complete.',
+    },
+  ]
+
+  return (
+    <main className="max-w-4xl mx-auto px-6 py-12">
+      <div className="reveal-up">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h2 className="font-display text-2xl uppercase tracking-wide mb-2">Evaluation Pipeline</h2>
+          <p className="text-[var(--fg-muted)] text-sm">How your idea flowed through our AI council</p>
+        </div>
+
+        {/* Mermaid Diagram */}
+        <div className="flex justify-center mb-12">
+          <div 
+            ref={mermaidRef} 
+            className="mermaid-container bg-[var(--bg-secondary)] p-8 border border-[var(--border)] rounded-lg"
+            style={{ minHeight: '300px', minWidth: '400px' }}
+          />
+        </div>
+
+        {/* Legend */}
+        <div className="flex justify-center gap-8 mb-12 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
+            <span className="text-[var(--fg-muted)]">Strong (7-10)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
+            <span className="text-[var(--fg-muted)]">Moderate (5-6)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
+            <span className="text-[var(--fg-muted)]">Weak (0-4)</span>
+          </div>
+        </div>
+
+        {/* Phase Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+          {phases.map((phase) => (
+            <div 
+              key={phase.name}
+              className="p-4 border border-[var(--border)] bg-[var(--bg-secondary)]"
+              style={{ borderLeftColor: getScoreColor(phase.score), borderLeftWidth: '3px' }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-white">{phase.name}</h3>
+                <span 
+                  className="font-mono text-sm"
+                  style={{ color: getScoreColor(phase.score) }}
+                >
+                  {phase.score}/10
+                </span>
+              </div>
+              <p className="text-xs text-[var(--fg-subtle)] mb-2">{phase.description}</p>
+              <p className="text-sm text-[var(--fg-muted)] line-clamp-3">
+                {phase.detail.replace(/\*\*/g, '').replace(/#/g, '')}...
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => onViewChange('full')}
+            className="px-6 py-3 font-mono text-sm tracking-wide transition-all border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-black"
+          >
+            View Full Report
+          </button>
+          <button
+            onClick={() => onViewChange('tldr')}
+            className="px-6 py-3 font-mono text-sm tracking-wide transition-all border border-[var(--border)] text-[var(--fg-muted)] hover:border-white hover:text-white"
+          >
+            View TL;DR
+          </button>
+        </div>
       </div>
     </main>
   )
