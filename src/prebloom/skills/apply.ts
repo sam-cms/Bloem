@@ -15,6 +15,9 @@ const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const CLEANUP_MODEL = process.env.CLEANUP_MODEL || "llama3.2:3b";
 const FALLBACK_MODEL = "claude-3-5-haiku-20241022";
 
+// Set USE_LOCAL_CLEANUP=false to skip Ollama and use Haiku directly
+const USE_LOCAL_CLEANUP = process.env.USE_LOCAL_CLEANUP !== "false";
+
 interface OllamaResponse {
   response: string;
   done: boolean;
@@ -191,24 +194,28 @@ export async function applySkill(
   let processedText: string | null = null;
   let usedBackend = "none";
 
-  // Try Ollama first (local, fast, free)
-  const ollamaAvailable = await isOllamaAvailable();
-  if (ollamaAvailable) {
-    console.log(`[prebloom-skills] Using local Ollama (${CLEANUP_MODEL})`);
-    processedText = await applyWithOllama(skill, text);
-    if (processedText) {
-      usedBackend = `ollama:${CLEANUP_MODEL}`;
-    }
-  } else {
-    // Try to pull the model
-    console.log(`[prebloom-skills] Ollama model not found, attempting to pull...`);
-    const pulled = await ensureOllamaModel();
-    if (pulled) {
+  // Try Ollama first if enabled (local, fast, free)
+  if (USE_LOCAL_CLEANUP) {
+    const ollamaAvailable = await isOllamaAvailable();
+    if (ollamaAvailable) {
+      console.log(`[prebloom-skills] Using local Ollama (${CLEANUP_MODEL})`);
       processedText = await applyWithOllama(skill, text);
       if (processedText) {
         usedBackend = `ollama:${CLEANUP_MODEL}`;
       }
+    } else {
+      // Try to pull the model
+      console.log(`[prebloom-skills] Ollama model not found, attempting to pull...`);
+      const pulled = await ensureOllamaModel();
+      if (pulled) {
+        processedText = await applyWithOllama(skill, text);
+        if (processedText) {
+          usedBackend = `ollama:${CLEANUP_MODEL}`;
+        }
+      }
     }
+  } else {
+    console.log(`[prebloom-skills] Local cleanup disabled, using API`);
   }
 
   // Fall back to Anthropic if Ollama failed

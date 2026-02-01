@@ -20,11 +20,11 @@ services:
       - ollama-models:/root/.ollama
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      test: ["CMD-SHELL", "ollama list || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   # Whisper: Local speech-to-text service
   whisper:
@@ -57,6 +57,7 @@ services:
       WHISPER_SERVICE_URL: http://whisper:8000
       OLLAMA_URL: http://ollama:11434
       CLEANUP_MODEL: ${CLEANUP_MODEL:-llama3.2:3b}
+      USE_LOCAL_CLEANUP: ${USE_LOCAL_CLEANUP:-false}
     depends_on:
       whisper:
         condition: service_healthy
