@@ -17,6 +17,8 @@ MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 # Auto-detect device: prefer CUDA GPU if available, else CPU
 def get_device_config():
     """Detect best available device and compute type."""
+    import platform
+    
     try:
         import torch
         if torch.cuda.is_available():
@@ -25,7 +27,13 @@ def get_device_config():
     except ImportError:
         pass
     
-    # Fallback to CPU with int8 quantization for speed
+    # Check for Apple Silicon (ARM) - int8 not supported, use float32
+    machine = platform.machine().lower()
+    if machine in ('arm64', 'aarch64'):
+        print(f"[whisper] ARM architecture detected ({machine}), using float32")
+        return "cpu", "float32"
+    
+    # x86/x64 Linux/Windows can use int8 for better performance
     print(f"[whisper] Using CPU with int8 quantization")
     return "cpu", "int8"
 
