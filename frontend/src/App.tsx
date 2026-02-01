@@ -34,7 +34,7 @@ const DIMENSION_CONFIG: { key: keyof DimensionScores; label: string }[] = [
 ]
 
 type AppState = 'landing' | 'input' | 'processing' | 'report'
-type ReportView = 'tldr' | 'full'
+type ReportView = 'tldr' | 'full' | 'groundwork'
 type RecordingState = 'idle' | 'recording' | 'transcribing'
 
 const API_BASE = ''
@@ -540,6 +540,16 @@ function ReportContainer({
           {/* View Toggle */}
           <div className="flex items-center gap-1 bg-[var(--bg-secondary)] p-1">
             <button
+              onClick={() => onViewChange('tldr')}
+              className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
+                view === 'tldr' 
+                  ? 'bg-[var(--accent)] text-black' 
+                  : 'text-[var(--fg-muted)] hover:text-white'
+              }`}
+            >
+              TL;DR
+            </button>
+            <button
               onClick={() => onViewChange('full')}
               className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
                 view === 'full' 
@@ -550,14 +560,14 @@ function ReportContainer({
               Full Report
             </button>
             <button
-              onClick={() => onViewChange('tldr')}
+              onClick={() => onViewChange('groundwork')}
               className={`px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
-                view === 'tldr' 
+                view === 'groundwork' 
                   ? 'bg-[var(--accent)] text-black' 
                   : 'text-[var(--fg-muted)] hover:text-white'
               }`}
             >
-              TL;DR
+              Groundwork
             </button>
           </div>
 
@@ -569,6 +579,8 @@ function ReportContainer({
 
       {view === 'tldr' ? (
         <TLDRView verdict={verdict} onExpand={() => onViewChange('full')} />
+      ) : view === 'groundwork' ? (
+        <GroundworkView />
       ) : (
         <FullReportView verdict={verdict} idea={idea} onReset={onReset} />
       )}
@@ -698,6 +710,57 @@ function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => voi
         >
           [ View Full Report ]
         </button>
+      </div>
+    </main>
+  )
+}
+
+function GroundworkView() {
+  return (
+    <main className="max-w-4xl mx-auto px-6 py-16">
+      <div className="reveal-up">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 border border-[var(--accent)] flex items-center justify-center">
+              <div className="w-6 h-6 bg-[var(--accent)]" />
+            </div>
+          </div>
+          <h1 className="font-display text-4xl md:text-5xl text-white mb-4 tracking-tight">
+            GROUNDWORK
+          </h1>
+          <p className="text-[var(--fg-muted)] max-w-lg mx-auto">
+            Deep market research, competitive intelligence, and institutional-grade validation.
+          </p>
+        </div>
+
+        {/* Coming Soon Card */}
+        <div className="border border-[var(--border)] bg-[var(--bg-secondary)] p-12 text-center">
+          <p className="label text-[var(--accent)] mb-6">Coming in V2</p>
+          
+          <div className="grid md:grid-cols-2 gap-6 text-left mb-12">
+            <div className="p-6 border border-[var(--border)]">
+              <p className="text-white font-medium mb-2">Market Intelligence</p>
+              <p className="text-[var(--fg-muted)] text-sm">TAM/SAM/SOM analysis, market trends, growth projections, and timing signals.</p>
+            </div>
+            <div className="p-6 border border-[var(--border)]">
+              <p className="text-white font-medium mb-2">Competitive Landscape</p>
+              <p className="text-[var(--fg-muted)] text-sm">Deep competitor analysis, positioning maps, and differentiation opportunities.</p>
+            </div>
+            <div className="p-6 border border-[var(--border)]">
+              <p className="text-white font-medium mb-2">Investment Thesis</p>
+              <p className="text-[var(--fg-muted)] text-sm">VC-grade thesis construction with supporting evidence and risk factors.</p>
+            </div>
+            <div className="p-6 border border-[var(--border)]">
+              <p className="text-white font-medium mb-2">Validation Signals</p>
+              <p className="text-[var(--fg-muted)] text-sm">Customer discovery insights, demand indicators, and go-to-market readiness.</p>
+            </div>
+          </div>
+
+          <p className="text-[var(--fg-subtle)] text-sm">
+            Agentic deep research • Multi-source intelligence • Institutional-grade output
+          </p>
+        </div>
       </div>
     </main>
   )
