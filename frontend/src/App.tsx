@@ -303,18 +303,43 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#050505]">
+      <div className="mosaic-grid" />
       <div className="light-leak light-leak-orange" />
       <div className="light-leak light-leak-blue" />
       
-      <header className="px-6 py-6 border-b border-[var(--border)]">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-6 h-6 object-contain" />
-          <span className="label">Prebloom</span>
+      {/* Same header as landing page */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#050505]/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-8 md:px-16 py-6 flex justify-between items-center">
+          {/* Logo */}
+          <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="flex items-center gap-1 hover:opacity-80 transition-opacity">
+            <span className="font-display text-2xl font-bold tracking-tight">
+              Prebloom
+            </span>
+            <img src="/prebloom-logo.jpg" alt="" className="w-4 h-4 object-contain ml-1" />
+          </a>
+          
+          {/* Nav Links */}
+          <nav className="hidden md:flex items-center gap-12">
+            <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              01. How it works
+            </a>
+            <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              02. Features
+            </a>
+            <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-[var(--coral)] transition-colors">
+              03. Who it's for
+            </a>
+          </nav>
+          
+          {/* Back to home */}
+          <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
+            ← Back
+          </a>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
+      <main className="flex-1 flex items-center justify-center px-6 py-12 pt-32 relative z-10">
         <div className="w-full max-w-2xl">
           {state === 'input' && (
             <div className="reveal-up">
@@ -332,15 +357,15 @@ export default function App() {
                     />
                   </div>
                 )}
-                <div className="relative inline-block">
-                  <h1 className="font-display text-5xl md:text-7xl text-white tracking-tight">
+                <div className="mb-2">
+                  <h1 className="text-4xl md:text-5xl text-white font-light tracking-tight leading-tight">
                     Test the ground.
                   </h1>
-                  <span className="absolute -bottom-2 right-0 font-mono text-xs md:text-sm text-[#22c55e] tracking-widest uppercase">
-                    Pitch your seed
-                  </span>
+                  <p className="text-xl md:text-2xl text-[#22c55e] font-light mt-2">
+                    Pitch your seed.
+                  </p>
                 </div>
-                <p className="text-white/40 max-w-lg mx-auto mt-8 font-light">
+                <p className="text-white/40 max-w-lg mx-auto mt-6 text-sm">
                   Every seed starts with an idea. Describe yours. We'll dig into the rest.
                 </p>
               </div>
@@ -366,7 +391,7 @@ export default function App() {
                     placeholder="e.g., I'm building an AI tool that helps photographers get feedback before submitting to galleries..."
                     rows={6}
                     disabled={recordingState === 'transcribing'}
-                    className={`w-full px-5 py-4 pr-14 bg-[#0a0a0a] border-2 text-white placeholder:text-white/20 placeholder:font-light placeholder:italic focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-white/10 focus:border-[#22c55e]/60 ${
+                    className={`w-full px-5 py-4 pr-14 bg-[#0a0a0a] border-2 text-white placeholder:text-white/25 placeholder:font-light placeholder:normal-case focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-white/10 focus:border-[#22c55e]/60 ${
                       recordingState === 'recording' ? 'opacity-60' : ''
                     }`}
                   />
