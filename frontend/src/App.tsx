@@ -970,11 +970,11 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 nav-blend">
         <div className="max-w-7xl mx-auto px-8 md:px-16 py-6 flex justify-between items-center">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-8 h-8 object-contain" />
+          <div className="flex items-center gap-1">
             <span className="font-display text-2xl font-bold tracking-tight">
               Prebloom
             </span>
+            <img src="/prebloom-logo.jpg" alt="" className="w-4 h-4 object-contain ml-1" />
           </div>
           
           {/* Nav Links - Hidden on mobile */}
