@@ -993,7 +993,7 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           {/* CTA */}
           <button
             onClick={onGetStarted}
-            className="px-6 py-3 bg-[var(--mint)] text-black font-mono text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-white transition-all shadow-[0_0_20px_rgba(158,255,191,0.3)]"
+            className="px-6 py-3 bg-[#22c55e] text-black font-mono text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-[#4ade80] transition-all shadow-[0_0_25px_rgba(34,197,94,0.4)]"
           >
             Submit idea
           </button>
@@ -1209,7 +1209,7 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           
           <button
             onClick={onGetStarted}
-            className="w-full py-6 bg-[var(--mint)] text-black font-display uppercase font-bold tracking-widest hover:bg-white transition-all shadow-[0_0_40px_rgba(158,255,191,0.4)] hover:shadow-[0_0_60px_rgba(158,255,191,0.6)]"
+            className="w-full py-6 bg-[#22c55e] text-black font-display uppercase font-bold tracking-widest hover:bg-[#4ade80] transition-all shadow-[0_0_40px_rgba(34,197,94,0.5)] hover:shadow-[0_0_60px_rgba(34,197,94,0.7)]"
           >
             Submit your idea
           </button>
