@@ -173,8 +173,12 @@ export default function App() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSubmit(e)
+    // Submit on Enter (without shift) or Cmd/Ctrl+Enter
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (idea.trim()) {
+        handleSubmit(e)
+      }
     }
     
     // Unblock spacebar when any other key is pressed
@@ -620,14 +624,15 @@ function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => voi
     )
   }
 
-  // Extract first meaningful sentence(s) from analysis
+  // Extract first meaningful sentence(s) from analysis and humanize
   const extractSummary = (analysis: string, maxLen: number = 120) => {
-    const lines = analysis.split('\n').filter(l => l.trim().length > 15 && !l.startsWith('#'))
+    const humanized = humanizeReport(analysis)
+    const lines = humanized.split('\n').filter(l => l.trim().length > 15 && !l.startsWith('#'))
     const text = lines.slice(0, 2).join(' ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
     return text.length > maxLen ? text.slice(0, maxLen - 3) + '...' : text
   }
 
-  const cleanItem = (text: string) => text.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim()
+  const cleanItem = (text: string) => humanizeReport(text.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim())
 
   return (
     <main className="max-w-2xl mx-auto px-6 py-12">
@@ -863,7 +868,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
             </div>
             <p className="text-[var(--fg-muted)] text-lg font-mono">{verdict.confidence}/10</p>
           </div>
-          <p className="text-[var(--fg-muted)] text-lg leading-relaxed mb-8">{verdict.executiveSummary}</p>
+          <p className="text-[var(--fg-muted)] text-lg leading-relaxed mb-8">{humanizeReport(verdict.executiveSummary)}</p>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-6 border border-[var(--border)] bg-[var(--bg-secondary)]">
@@ -872,7 +877,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
                 {verdict.keyStrengths.map((s, i) => (
                   <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
                     <span className="text-[var(--accent)]">+</span>
-                    <span>{cleanText(s)}</span>
+                    <span>{humanizeReport(cleanText(s))}</span>
                   </li>
                 ))}
               </ul>
@@ -883,7 +888,7 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
                 {verdict.keyRisks.map((r, i) => (
                   <li key={i} className="flex gap-3 text-sm text-[var(--fg-muted)]">
                     <span className="text-[var(--fg-subtle)]">−</span>
-                    <span>{cleanText(r)}</span>
+                    <span>{humanizeReport(cleanText(r))}</span>
                   </li>
                 ))}
               </ul>
@@ -1019,9 +1024,16 @@ function ReportSection({
                 strong: ({ children }) => <strong className="text-white font-medium">{children}</strong>,
                 em: ({ children }) => <em className="text-[var(--fg-muted)] italic">{children}</em>,
                 blockquote: ({ children }) => <blockquote className="border-l-2 border-[var(--accent)] pl-4 my-4 text-[var(--fg-muted)]">{children}</blockquote>,
+                // Skip rendering tables - they don't display well
+                table: () => null,
+                thead: () => null,
+                tbody: () => null,
+                tr: () => null,
+                th: () => null,
+                td: () => null,
               }}
             >
-              {content}
+              {humanizeReport(content)}
             </ReactMarkdown>
           </div>
         </div>
@@ -1036,6 +1048,92 @@ function cleanText(text: string): string {
     .replace(/\*\*/g, '')
     .replace(/^\.\s*/, '')
     .trim()
+}
+
+// Humanize AI-generated report content for professional display
+function humanizeReport(text: string): string {
+  if (!text) return text
+  
+  let result = text
+  
+  // Remove emojis
+  result = result.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2300}-\u{23FF}]|[\u{2B50}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FAFF}]|🔴|🟠|🟡|🟢|🔥|💡|✅|❌|⚠️|📊|🎯|💪|🚀|⭐|✨|📈|📉|💰|🏆|🎉|👍|👎|❗|❓|🔍|📝|💼|🌟|⚡/gu, '')
+  
+  // Remove markdown table syntax and convert to prose
+  result = result.replace(/\|[^\n]+\|/g, (match) => {
+    // Extract cell content
+    const cells = match.split('|').filter(c => c.trim() && !c.match(/^[\s-:]+$/))
+    return cells.join(' — ')
+  })
+  result = result.replace(/^\s*\|?[\s-:|]+\|?\s*$/gm, '') // Remove separator rows
+  
+  // Remove excessive markdown headers (keep h1, h2, simplify)
+  result = result.replace(/^#{4,}\s*/gm, '### ')
+  
+  // Remove inline bold headers with colons at start of lines
+  result = result.replace(/^\*\*([^*]+)\*\*:\s*/gm, '$1: ')
+  
+  // Remove promotional/AI language
+  const aiWords = [
+    /\bserves as\b/gi,
+    /\bstands as\b/gi,
+    /\bis a testament to\b/gi,
+    /\bunderscore[sd]?\b/gi,
+    /\bhighlight[sd]?\b/gi,
+    /\bpivotal\b/gi,
+    /\bcrucial\b/gi,
+    /\bgroundbreaking\b/gi,
+    /\brevolutionary\b/gi,
+    /\bseamless\b/gi,
+    /\brobust\b/gi,
+    /\bleverag(e|ing|ed)\b/gi,
+    /\bdelve[sd]?\b/gi,
+    /\btapestry\b/gi,
+    /\blandscape\b(?!\s+analysis)/gi, // keep "landscape analysis"
+    /\bvibrant\b/gi,
+    /\benduring\b/gi,
+    /\bfostering\b/gi,
+    /\bshowcas(e|ing|ed)\b/gi,
+    /\bencompass(es|ing|ed)?\b/gi,
+    /\bmoreover,?\s*/gi,
+    /\bfurthermore,?\s*/gi,
+    /\badditionally,?\s*/gi,
+    /\bin today's\b/gi,
+    /\bin the realm of\b/gi,
+    /\bit's worth noting that\b/gi,
+    /\bit is important to note that\b/gi,
+  ]
+  
+  for (const pattern of aiWords) {
+    result = result.replace(pattern, '')
+  }
+  
+  // Remove "It's not just X, it's Y" patterns
+  result = result.replace(/it'?s not just ([^,]+),\s*it'?s/gi, 'This is')
+  
+  // Remove em-dash overuse (keep max 1 per sentence)
+  result = result.replace(/—([^—]+)—/g, ', $1,')
+  
+  // Remove excessive exclamation marks
+  result = result.replace(/!{2,}/g, '.')
+  result = result.replace(/!\s*$/gm, '.')
+  
+  // Clean up double spaces and multiple newlines
+  result = result.replace(/  +/g, ' ')
+  result = result.replace(/\n{3,}/g, '\n\n')
+  
+  // Remove lines that are just dashes or equals
+  result = result.replace(/^[-=]{3,}\s*$/gm, '')
+  
+  // Remove "Here's" and "Let's" openers
+  result = result.replace(/^here'?s\s+(what|how|why|the)\b/gmi, '')
+  result = result.replace(/^let'?s\s+(dive|explore|look|examine)\b/gmi, '')
+  
+  // Clean up any resulting double spaces or leading spaces
+  result = result.replace(/  +/g, ' ')
+  result = result.replace(/^\s+/gm, '')
+  
+  return result.trim()
 }
 
 // Score bar component - renders ████████░░ style bars
