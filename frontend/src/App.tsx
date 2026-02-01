@@ -332,13 +332,12 @@ export default function App() {
                     />
                   </div>
                 )}
-                <p className="label mb-4 text-[var(--accent)]">Startup Idea Validator</p>
                 <h1 className="font-display text-4xl md:text-5xl text-white mb-6">
-                  BRIEF THE COUNCIL
+                  Test the ground.<br />
+                  <span className="text-[#22c55e]">Pitch your seed.</span>
                 </h1>
                 <p className="text-[var(--fg-muted)] max-w-lg mx-auto">
-                  Describe your startup idea. Be specific about the problem, your solution, 
-                  target market, and how you'll make money.
+                  Every seed starts with an idea. Describe yours. We'll dig into the rest.
                 </p>
               </div>
 
