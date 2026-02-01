@@ -1,6 +1,6 @@
 # Prebloom — Progress Tracker
 
-> **Last Updated:** 2026-02-01 04:25 UTC  
+> **Last Updated:** 2026-02-01 04:45 UTC  
 > **Current Branch:** `landing-page-kronos`  
 > **Status:** 🟢 Active Development
 
@@ -8,43 +8,72 @@
 
 ## 🎯 Current Sprint Goals
 
-1. [ ] **Deep Research Tab** — Agentic market research on-demand
-2. [ ] **Mermaid Diagram** — Visual flow of idea through pipeline
-3. [ ] **Pricing Strategy** — Define and document pricing model
-4. [ ] **Iterate Mode** — Refine idea based on feedback
-5. [ ] **PDF Export** — Improved report export
-6. [ ] **History Persistence** — Store past evaluations
+1. [x] **Pipeline Flow View** — Mermaid diagram of evaluation flow ✅
+2. [x] **Pricing Strategy** — Analysis and documentation ✅
+3. [~] **History Persistence** — SQLite storage module created, needs integration
+4. [ ] **Deep Research Tab** — Agentic market research on-demand
+5. [ ] **Iterate Mode** — Refine idea based on feedback
+6. [ ] **PDF Export** — Improved report export
 
 ---
 
 ## 📊 Task Status
 
-### In Progress
-- [ ] Deep Research Tab design and implementation
+### ✅ Completed This Session
 
-### Just Completed
-- [x] Mermaid diagram visualization (Pipeline tab)
+1. **Pipeline Flow View** (Mermaid diagram)
+   - New "Pipeline" tab in report view
+   - Visual flow: Idea → Intake → Catalyst/Fire → Synthesis → Verdict
+   - Color-coded phases by score (green/yellow/red)
+   - Phase detail cards with summaries
 
-### Queued
-- [ ] Pricing model analysis
-- [ ] Iterate mode
-- [ ] PDF export improvements
-- [ ] History persistence (SQLite)
+2. **Pricing Strategy Analysis**
+   - Competitive research (Torrn, ValidatorAI, IdeaProof, etc.)
+   - Pricing tiers defined: Free, Founder ($19), Pro ($9/mo), Enterprise
+   - Document: `docs/PRICING-STRATEGY.md`
 
-### Completed This Session
-- [x] Whisper model: small → medium
-- [x] Cleanup: Ollama + Haiku fallback
-- [x] USE_LOCAL_CLEANUP toggle
-- [x] Landing page styling fixes
-- [x] Documentation updates
+3. **SQLite Storage Module** (partial)
+   - Created `src/prebloom/storage/sqlite.ts`
+   - CRUD operations for evaluations
+   - Pagination, filtering, stats
+   - Needs: Integration with HTTP handler
+
+### 🔄 In Progress
+
+- **History Persistence Integration**
+  - Storage module created ✅
+  - TODO: Update HTTP handler to use SQLite instead of in-memory Map
+  - TODO: Add history endpoint (GET /prebloom/history)
+  - TODO: Add history view in frontend
+
+### 📋 Queued (Next Up)
+
+1. **Complete History Integration**
+   - Wire up SQLite storage to API
+   - Frontend history view
+
+2. **Deep Research Tab**
+   - Design: Background agents for market research
+   - Competitor analysis, market sizing, trends
+   - New tab alongside TL;DR and Full Report
+
+3. **Iterate Mode**
+   - "Refine & Re-evaluate" button on report
+   - Keep history of iterations
+   - Compare versions
+
+4. **PDF Export**
+   - Proper formatting
+   - Include all sections
+   - Branding
 
 ---
 
 ## 🔬 Feature Designs
 
-### 1. Deep Research Tab
+### Deep Research Tab (Next Priority)
 
-**Concept:** A "Research" tab alongside TL;DR and Full Report that triggers on-demand deep market research.
+**Concept:** A "Research" tab that triggers on-demand deep market research.
 
 **What it does:**
 - Spawns background agents to research:
@@ -55,19 +84,6 @@
 - Returns structured research report
 - Cached per evaluation (don't re-run)
 
-**UI:**
-```
-[TL;DR] [Full Report] [Deep Research 🔍]
-                            ↓
-         "Researching market..." (spinner)
-                            ↓
-         Market Research Report
-         ├── Market Size: $X.XB
-         ├── Key Competitors: [list]
-         ├── Recent Funding: [list]
-         └── Trend Analysis: [graph/text]
-```
-
 **Implementation:**
 - New endpoint: POST /prebloom/research/:jobId
 - Background agent with web search capability
@@ -76,85 +92,45 @@
 
 ---
 
-### 2. Mermaid Diagram (Verdict Flow)
-
-**Concept:** Visual diagram showing how the idea flowed through evaluation.
-
-**What it shows:**
-- Idea → Intake → Catalyst → Fire → Synthesis → Verdict
-- Each node colored by score (green/yellow/red)
-- Clickable nodes show that phase's analysis
-- Shows WHY the verdict was reached
-
-**Example Mermaid:**
-```mermaid
-graph TD
-    A[💡 Idea] --> B[📥 Intake]
-    B --> C[🚀 Catalyst Squad]
-    B --> D[🔥 Fire Squad]
-    C --> E[⚖️ Synthesis]
-    D --> E
-    E --> F[✅ CONDITIONAL PASS]
-    
-    style C fill:#22c55e
-    style D fill:#f59e0b
-    style F fill:#22c55e
-```
-
-**Implementation:**
-- Store phase scores in verdict
-- Generate Mermaid code from verdict data
-- Render with mermaid.js in frontend
-- Add as collapsible section in report
-
----
-
-### 3. Pricing Strategy
-
-**To analyze:**
-- Current: €29/report (retail)
-- Enterprise: TBD
-- Freemium: ?
-
-**Questions to answer:**
-- What do competitors charge?
-- What's the perceived value?
-- Freemium vs paid-only?
-- Volume discounts?
-
----
-
 ## 🧪 Testing Checklist
 
 Before marking complete:
-- [ ] Voice input works (medium model)
-- [ ] Transcription cleanup works (Haiku)
-- [ ] Full evaluation pipeline works
-- [ ] TL;DR view renders correctly
-- [ ] Full report view renders correctly
-- [ ] Landing page looks correct
+- [x] Voice input works (medium model)
+- [x] Transcription cleanup works (Haiku)
+- [x] Full evaluation pipeline works
+- [x] TL;DR view renders correctly
+- [x] Full report view renders correctly
+- [x] Landing page looks correct
+- [x] Pipeline Flow view renders correctly
+- [ ] History persistence works
+- [ ] PDF export works
 
 ---
 
-## 📁 Key Files
+## 📁 Key Files Modified This Session
 
 | Feature | Files |
 |---------|-------|
-| Deep Research | `src/prebloom/api/http-handler.ts`, `frontend/src/App.tsx` |
-| Mermaid Diagram | `frontend/src/App.tsx`, new component |
-| History | `src/prebloom/storage/` (new) |
-| PDF Export | `src/prebloom/api/http-handler.ts` |
+| Pipeline Flow | `frontend/src/App.tsx` (PipelineFlowView component) |
+| Pricing | `docs/PRICING-STRATEGY.md` |
+| Storage | `src/prebloom/storage/sqlite.ts`, `src/prebloom/storage/index.ts` |
 
 ---
 
 ## 🔄 Session Handoff Notes
 
 **For next session:**
-1. Read this PROGRESS.md first
-2. Check git status and current branch
+
+1. **Read this PROGRESS.md first**
+2. Check git status and current branch (`landing-page-kronos`)
 3. Run `docker compose -f docker-compose.prebloom.yml ps` to verify services
-4. Continue from "In Progress" section above
-5. Update this file after each completed task
+4. **Continue from "In Progress" section:**
+   - Complete SQLite integration with HTTP handler
+   - Add history endpoint and frontend view
+
+**Files to update:**
+- `src/prebloom/api/http-handler.ts` — Replace in-memory Map with SQLite calls
+- `frontend/src/App.tsx` — Add history view
 
 **Known issues:**
 - Ollama local cleanup disabled (USE_LOCAL_CLEANUP=false)
@@ -164,12 +140,33 @@ Before marking complete:
 
 ## 📝 Changelog
 
+### 2026-02-01 04:45 UTC
+- Created SQLite storage module for history persistence
+- Added better-sqlite3 dependency
+- Updated pricing strategy document
+
 ### 2026-02-01 04:35 UTC
 - ✅ Added Pipeline Flow view with Mermaid diagram
 - Shows evaluation flow: Idea → Intake → Catalyst/Fire → Synthesis → Verdict
 - Color-coded by score (green/yellow/red)
 - Phase details with scores
 
+### 2026-02-01 04:30 UTC
+- ✅ Created pricing strategy analysis (docs/PRICING-STRATEGY.md)
+- Competitive research: Torrn, ValidatorAI, IdeaProof, ProductGapHunt
+- Defined tiers: Free, Founder ($19), Pro ($9/mo), Enterprise
+
 ### 2026-02-01 04:25 UTC
 - Created PROGRESS.md
-- Starting Deep Research Tab design
+- Started sprint planning
+
+---
+
+## 💡 Ideas for Later
+
+- Deep Research with web search agents
+- Iterate mode with version comparison
+- PDF export with branding
+- Email delivery (SendGrid/Resend)
+- Share links (unique URLs)
+- Usage analytics dashboard

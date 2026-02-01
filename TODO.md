@@ -94,6 +94,9 @@ Focus: Landing page polish + prepare for beta launch
 - [x] Whisper model upgraded: small → medium (better accuracy)
 - [x] Cleanup model: added Ollama/Llama option with Haiku fallback
 - [x] Added USE_LOCAL_CLEANUP toggle for local vs API cleanup
+- [x] Pipeline Flow view with Mermaid diagram (new report tab)
+- [x] Pricing strategy analysis (docs/PRICING-STRATEGY.md)
+- [x] SQLite storage module for history persistence (partial)
 
 ### 2026-01-31
 - [x] Voice input with local Whisper transcription
