@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import AudioVisualizer from './components/AudioVisualizer'
 
 type DimensionScores = {
   problemClarity: number
@@ -52,6 +53,7 @@ export default function App() {
   const longPressTimerRef = useRef<number | null>(null)
   const spacebarTimerRef = useRef<number | null>(null)
   const [blockSpacebar, setBlockSpacebar] = useState(false)
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null)
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -220,6 +222,7 @@ export default function App() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      setAudioStream(stream)
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
@@ -231,8 +234,9 @@ export default function App() {
       }
 
       mediaRecorder.onstop = async () => {
-        // Stop all tracks
+        // Stop all tracks and clear stream
         stream.getTracks().forEach(track => track.stop())
+        setAudioStream(null)
 
         // Create blob and send to transcribe endpoint
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
@@ -381,21 +385,29 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                  <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     {recordingState === 'recording' ? (
                       <>
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <span>Recording... tap space to stop</span>
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+                        <AudioVisualizer 
+                          stream={audioStream} 
+                          isActive={recordingState === 'recording'}
+                          width={120}
+                          height={24}
+                          barCount={20}
+                          accentColor="#ef4444"
+                        />
+                        <span className="text-[var(--fg-subtle)] text-xs">tap space to stop</span>
                       </>
                     ) : recordingState === 'transcribing' ? (
-                      <>
+                      <p className="text-[var(--fg-subtle)] text-xs flex items-center gap-2">
                         <span className="spinner-small" />
                         <span>Transcribing audio...</span>
-                      </>
+                      </p>
                     ) : (
-                      'Long-press space or hold click to talk'
+                      <p className="text-[var(--fg-subtle)] text-xs">Long-press space or hold click to talk</p>
                     )}
-                  </p>
+                  </div>
                   <button
                     type="submit"
                     disabled={!idea.trim()}
