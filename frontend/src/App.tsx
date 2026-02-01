@@ -332,11 +332,15 @@ export default function App() {
                     />
                   </div>
                 )}
-                <h1 className="font-display text-4xl md:text-5xl text-white mb-6">
-                  Test the ground.<br />
-                  <span className="text-[#22c55e]">Pitch your seed.</span>
-                </h1>
-                <p className="text-[var(--fg-muted)] max-w-lg mx-auto">
+                <div className="relative inline-block">
+                  <h1 className="font-display text-5xl md:text-7xl text-white tracking-tight">
+                    Test the ground.
+                  </h1>
+                  <span className="absolute -bottom-2 right-0 font-mono text-xs md:text-sm text-[#22c55e] tracking-widest uppercase">
+                    Pitch your seed
+                  </span>
+                </div>
+                <p className="text-white/40 max-w-lg mx-auto mt-8 font-light">
                   Every seed starts with an idea. Describe yours. We'll dig into the rest.
                 </p>
               </div>
@@ -359,10 +363,10 @@ export default function App() {
                     onMouseLeave={handleMouseLeave}
                     onTouchStart={handleMouseDown}
                     onTouchEnd={handleMouseUp}
-                    placeholder="I'm building an AI-powered tool that helps photographers get brutally honest feedback on their work before submitting to galleries..."
+                    placeholder="e.g., I'm building an AI tool that helps photographers get feedback before submitting to galleries..."
                     rows={6}
                     disabled={recordingState === 'transcribing'}
-                    className={`w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border text-white placeholder-[var(--fg-subtle)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-[var(--border)] focus:border-[var(--accent-muted)] ${
+                    className={`w-full px-5 py-4 pr-14 bg-[#0a0a0a] border-2 text-white placeholder:text-white/20 placeholder:font-light placeholder:italic focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-white/10 focus:border-[#22c55e]/60 ${
                       recordingState === 'recording' ? 'opacity-60' : ''
                     }`}
                   />
