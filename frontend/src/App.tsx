@@ -357,13 +357,13 @@ export default function App() {
                     />
                   </div>
                 )}
-                <div className="mb-2">
-                  <h1 className="text-4xl md:text-5xl text-white font-light tracking-tight leading-tight">
-                    Test the ground.
+                <div className="relative inline-block mb-4">
+                  <h1 className="text-4xl md:text-6xl text-[#22c55e] font-light tracking-tight leading-tight">
+                    Read the soil.
                   </h1>
-                  <p className="text-xl md:text-2xl text-[#22c55e] font-light mt-2">
+                  <span className="absolute -bottom-1 right-0 text-sm md:text-base text-[#22c55e]/70 font-mono tracking-wide">
                     Pitch your seed.
-                  </p>
+                  </span>
                 </div>
                 <p className="text-white/40 max-w-lg mx-auto mt-6 text-sm">
                   Every seed starts with an idea. Describe yours. We'll dig into the rest.
