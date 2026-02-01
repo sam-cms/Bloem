@@ -358,10 +358,8 @@ export default function App() {
                     placeholder="I'm building an AI-powered tool that helps photographers get brutally honest feedback on their work before submitting to galleries..."
                     rows={6}
                     disabled={recordingState === 'transcribing'}
-                    className={`w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border text-white placeholder-[var(--fg-subtle)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 ${
-                      recordingState === 'recording' 
-                        ? 'border-red-500 bg-red-500/5' 
-                        : 'border-[var(--border)] focus:border-[var(--accent-muted)]'
+                    className={`w-full px-5 py-4 pr-14 bg-[var(--bg-secondary)] border text-white placeholder-[var(--fg-subtle)] focus:outline-none transition-colors resize-none text-base leading-relaxed disabled:opacity-50 border-[var(--border)] focus:border-[var(--accent-muted)] ${
+                      recordingState === 'recording' ? 'opacity-60' : ''
                     }`}
                   />
                   
