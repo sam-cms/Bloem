@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 550" width="700" height="550">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap');
+      .font-display { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .text-white { fill: #FFFFFF; }
+      .text-muted { fill: rgba(255,255,255,0.7); }
+      .text-green { fill: #4ade80; }
+      .text-red { fill: #f87171; }
+      .text-yellow { fill: #fbbf24; }
+      .text-accent { fill: #22c55e; }
+      .stroke-green { stroke: #4ade80; }
+      .stroke-red { stroke: #f87171; }
+      .stroke-yellow { stroke: #fbbf24; }
+      .stroke-accent { stroke: #22c55e; }
+      .stroke-muted { stroke: rgba(255,255,255,0.35); }
+      .fill-bg { fill: #050505; }
+      .fill-card { fill: #111111; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="700" height="550" class="fill-bg"/>
+  
+  <!-- Connection Lines -->
+  <g fill="none" stroke-width="2" stroke-dasharray="6 4">
+    <!-- Intake to Catalyst -->
+    <path d="M 350 75 Q 250 100 130 145" class="stroke-muted"/>
+    <!-- Intake to Fire -->
+    <path d="M 350 75 Q 450 100 570 145" class="stroke-muted"/>
+    <!-- Catalyst to Deliberation -->
+    <path d="M 240 250 L 280 275" class="stroke-muted"/>
+    <!-- Fire to Deliberation -->
+    <path d="M 460 250 L 420 275" class="stroke-muted"/>
+    <!-- Deliberation to Synthesis -->
+    <path d="M 350 335 L 350 470" class="stroke-muted"/>
+  </g>
+  
+  <!-- INTAKE AGENT -->
+  <g transform="translate(350, 20)">
+    <!-- Icon box -->
+    <rect x="-26" y="0" width="52" height="52" fill="#111" stroke="#22c55e" stroke-width="2"/>
+    <!-- Document icon -->
+    <g transform="translate(-11, 13)" stroke="#22c55e" stroke-width="2" fill="none">
+      <path d="M3 4h8.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V18a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z"/>
+      <path d="M7 9h6M7 13h6"/>
+    </g>
+    <!-- Label -->
+    <text x="0" y="68" text-anchor="middle" class="font-display text-accent" font-size="11" letter-spacing="0.08em">INTAKE</text>
+    <text x="0" y="80" text-anchor="middle" class="font-mono text-muted" font-size="7" letter-spacing="0.12em">PROBLEM ANALYSIS</text>
+  </g>
+  
+  <!-- CATALYST SQUAD BOX -->
+  <g transform="translate(20, 130)">
+    <rect x="0" y="0" width="220" height="210" fill="rgba(17,17,17,0.9)" stroke="#4ade80" stroke-width="2"/>
+    <!-- Label -->
+    <rect x="50" y="-10" width="120" height="20" fill="#050505" stroke="#4ade80" stroke-width="2"/>
+    <text x="110" y="4" text-anchor="middle" class="font-mono text-green" font-size="9" letter-spacing="0.12em">CATALYST SQUAD</text>
+    
+    <!-- Internal lines -->
+    <g stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-dasharray="3 3">
+      <line x1="110" y1="75" x2="45" y2="145"/>
+      <line x1="110" y1="75" x2="110" y2="145"/>
+      <line x1="110" y1="75" x2="175" y2="145"/>
+    </g>
+    
+    <!-- Lead Agent -->
+    <g transform="translate(110, 30)">
+      <rect x="-22" y="0" width="44" height="44" fill="#111" stroke="#4ade80" stroke-width="2"/>
+      <!-- Lightning icon -->
+      <g transform="translate(-10, 10)" stroke="#4ade80" stroke-width="2" fill="none">
+        <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z"/>
+      </g>
+      <text x="0" y="58" text-anchor="middle" class="font-display text-green" font-size="10" letter-spacing="0.08em">LEAD</text>
+      <text x="0" y="70" text-anchor="middle" class="font-mono text-muted" font-size="7" letter-spacing="0.12em">ADVOCATE</text>
+    </g>
+    
+    <!-- VC Partner -->
+    <g transform="translate(45, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#4ade80" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#4ade80" stroke-width="1.5" fill="none">
+        <rect x="2" y="6" width="12" height="8" rx="1"/>
+        <path d="M8 6V4a2 2 0 012-2h0a2 2 0 012 2v2"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="6" letter-spacing="0.08em">VC PARTNER</text>
+    </g>
+    
+    <!-- Product Owner -->
+    <g transform="translate(110, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#4ade80" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#4ade80" stroke-width="1.5" fill="none">
+        <rect x="2" y="2" width="12" height="16" rx="1"/>
+        <path d="M6 6h4M6 10h4M6 14h2"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="6" letter-spacing="0.08em">PRODUCT OWNER</text>
+    </g>
+    
+    <!-- Market Analyst -->
+    <g transform="translate(175, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#4ade80" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#4ade80" stroke-width="1.5" fill="none">
+        <path d="M4 16V8M8 16V4M12 16v-6"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="6" letter-spacing="0.08em">MARKET ANALYST</text>
+    </g>
+  </g>
+  
+  <!-- FIRE SQUAD BOX -->
+  <g transform="translate(460, 130)">
+    <rect x="0" y="0" width="220" height="210" fill="rgba(17,17,17,0.9)" stroke="#f87171" stroke-width="2"/>
+    <!-- Label -->
+    <rect x="60" y="-10" width="100" height="20" fill="#050505" stroke="#f87171" stroke-width="2"/>
+    <text x="110" y="4" text-anchor="middle" class="font-mono text-red" font-size="9" letter-spacing="0.12em">FIRE SQUAD</text>
+    
+    <!-- Internal lines -->
+    <g stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-dasharray="3 3">
+      <line x1="110" y1="75" x2="45" y2="145"/>
+      <line x1="110" y1="75" x2="110" y2="145"/>
+      <line x1="110" y1="75" x2="175" y2="145"/>
+    </g>
+    
+    <!-- Lead Agent -->
+    <g transform="translate(110, 30)">
+      <rect x="-22" y="0" width="44" height="44" fill="#111" stroke="#f87171" stroke-width="2"/>
+      <!-- Fire icon -->
+      <g transform="translate(-10, 8)" stroke="#f87171" stroke-width="2" fill="none">
+        <path d="M12 12c0-3-2.5-5-3-7 0 2-2 3-2 5s1 3 3 3 3-2 3-3c0 1-1 2-1 2"/>
+      </g>
+      <text x="0" y="58" text-anchor="middle" class="font-display text-red" font-size="10" letter-spacing="0.08em">LEAD</text>
+      <text x="0" y="70" text-anchor="middle" class="font-mono text-muted" font-size="7" letter-spacing="0.12em">SKEPTIC</text>
+    </g>
+    
+    <!-- Technical Lead -->
+    <g transform="translate(45, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#f87171" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#f87171" stroke-width="1.5" fill="none">
+        <circle cx="8" cy="8" r="3"/>
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5l1.5 1.5M3 13l1.5-1.5M11.5 4.5l1.5-1.5"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="6" letter-spacing="0.08em">TECHNICAL LEAD</text>
+    </g>
+    
+    <!-- Target User -->
+    <g transform="translate(110, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#f87171" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#f87171" stroke-width="1.5" fill="none">
+        <circle cx="8" cy="5" r="3"/>
+        <path d="M2 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="6" letter-spacing="0.08em">TARGET USER</text>
+    </g>
+    
+    <!-- Devil's Advocate -->
+    <g transform="translate(175, 155)">
+      <rect x="-18" y="0" width="36" height="36" fill="#111" stroke="#f87171" stroke-width="2"/>
+      <g transform="translate(-8, 8)" stroke="#f87171" stroke-width="1.5" fill="none">
+        <path d="M8 3v4M8 11v1M3 16h10l-5-9-5 9z"/>
+      </g>
+      <text x="0" y="48" text-anchor="middle" class="font-mono text-muted" font-size="5.5" letter-spacing="0.08em">DEVIL'S ADVOCATE</text>
+    </g>
+  </g>
+  
+  <!-- DELIBERATION BOX -->
+  <g transform="translate(350, 275)">
+    <rect x="-70" y="0" width="140" height="60" fill="#111" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+    <text x="0" y="28" text-anchor="middle" class="font-display text-white" font-size="13">Deliberation</text>
+    <text x="0" y="44" text-anchor="middle" class="font-mono text-muted" font-size="7" letter-spacing="0.15em">BULL VS BEAR</text>
+  </g>
+  
+  <!-- SYNTHESIS AGENT -->
+  <g transform="translate(350, 470)">
+    <!-- Icon box -->
+    <rect x="-26" y="0" width="52" height="52" fill="#111" stroke="#fbbf24" stroke-width="2"/>
+    <!-- Shield check icon -->
+    <g transform="translate(-11, 12)" stroke="#fbbf24" stroke-width="2" fill="none">
+      <path d="M11 1L2 5v6c0 5 4 8 9 9 5-1 9-4 9-9V5l-9-4z"/>
+      <path d="M7 11l2 2 4-4"/>
+    </g>
+    <!-- Label -->
+    <text x="0" y="68" text-anchor="middle" class="font-display text-yellow" font-size="11" letter-spacing="0.08em">SYNTHESIS</text>
+    <text x="0" y="80" text-anchor="middle" class="font-mono text-muted" font-size="7" letter-spacing="0.12em">MARKET FIT SCAN</text>
+  </g>
+  
+  <!-- Animated dots (static in SVG, shown as circles) -->
+  <g>
+    <circle cx="240" cy="110" r="5" fill="#22c55e" opacity="0.8"/>
+    <circle cx="460" cy="110" r="5" fill="#22c55e" opacity="0.8"/>
+    <circle cx="260" cy="262" r="5" fill="#4ade80" opacity="0.8"/>
+    <circle cx="440" cy="262" r="5" fill="#f87171" opacity="0.8"/>
+    <circle cx="350" cy="400" r="5" fill="#fbbf24" opacity="0.8"/>
+  </g>
+</svg>
