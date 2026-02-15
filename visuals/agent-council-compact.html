@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prebloom — Agent Council (Compact)</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,500,400&f[]=general-sans@400,300,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --deep-black: #050505;
+      --bg-primary: #050505;
+      --bg-secondary: #0a0a0a;
+      --bg-card: #111111;
+      --fg-primary: #FFFFFF;
+      --fg-muted: rgba(255, 255, 255, 0.7);
+      --fg-subtle: rgba(255, 255, 255, 0.5);
+      --accent: #22c55e;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --border: rgba(255, 255, 255, 0.15);
+      --border-bright: rgba(255, 255, 255, 0.35);
+      --font-display: 'Clash Display', system-ui, sans-serif;
+      --font-body: 'General Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: var(--font-body);
+      background: var(--deep-black);
+      color: var(--fg-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      position: relative;
+      width: 700px;
+      height: 550px;
+    }
+
+    /* Agent Nodes */
+    .agent {
+      position: absolute;
+      text-align: center;
+    }
+
+    .agent-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 6px;
+      border: 2px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+    }
+
+    .agent-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .agent-name {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .agent-role {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+    }
+
+    /* Agent Positions */
+    .agent-intake { top: 20px; left: 50%; transform: translateX(-50%); }
+    .agent-synthesis { bottom: 20px; left: 50%; transform: translateX(-50%); }
+
+    /* Squad containers */
+    .squad {
+      position: absolute;
+      padding: 18px 15px 15px;
+      border: 2px solid var(--border-bright);
+      background: rgba(17, 17, 17, 0.9);
+    }
+
+    .squad-label {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 3px 12px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--bg-primary);
+      white-space: nowrap;
+      border: 2px solid;
+    }
+
+    .squad-catalyst {
+      top: 130px;
+      left: 20px;
+      width: 220px;
+      height: 210px;
+      border-color: var(--success);
+    }
+
+    .squad-catalyst .squad-label {
+      color: var(--success);
+      border-color: var(--success);
+    }
+
+    .squad-fire {
+      top: 130px;
+      right: 20px;
+      width: 220px;
+      height: 210px;
+      border-color: var(--error);
+    }
+
+    .squad-fire .squad-label {
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    /* Sub-agent styling */
+    .sub-agent {
+      position: absolute;
+      width: 60px;
+      text-align: center;
+    }
+
+    .sub-agent-icon {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 4px;
+      border: 2px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+    }
+
+    .sub-agent-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .sub-agent-name {
+      font-family: var(--font-mono);
+      font-size: 6px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      line-height: 1.3;
+    }
+
+    .squad-catalyst .sub-agent-icon {
+      border-color: var(--success);
+    }
+    .squad-catalyst .sub-agent-icon svg {
+      stroke: var(--success);
+    }
+
+    .squad-fire .sub-agent-icon {
+      border-color: var(--error);
+    }
+    .squad-fire .sub-agent-icon svg {
+      stroke: var(--error);
+    }
+
+    /* Sub-agent positions */
+    .sub-agent-1 { bottom: 12px; left: 10px; }
+    .sub-agent-2 { bottom: 12px; left: 50%; transform: translateX(-50%); }
+    .sub-agent-3 { bottom: 12px; right: 10px; }
+
+    /* Squad lead */
+    .squad-main {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .squad-main .agent-icon {
+      width: 44px;
+      height: 44px;
+    }
+
+    .squad-main .agent-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .squad-main .agent-name {
+      font-size: 10px;
+    }
+
+    /* Agent Colors */
+    .agent-intake .agent-icon { border-color: var(--accent); }
+    .agent-intake .agent-icon svg { stroke: var(--accent); }
+    .agent-intake .agent-name { color: var(--accent); }
+    
+    .squad-catalyst .squad-main .agent-icon { border-color: var(--success); }
+    .squad-catalyst .squad-main .agent-icon svg { stroke: var(--success); }
+    .squad-catalyst .squad-main .agent-name { color: var(--success); }
+    
+    .squad-fire .squad-main .agent-icon { border-color: var(--error); }
+    .squad-fire .squad-main .agent-icon svg { stroke: var(--error); }
+    .squad-fire .squad-main .agent-name { color: var(--error); }
+    
+    .agent-synthesis .agent-icon { border-color: var(--warning); }
+    .agent-synthesis .agent-icon svg { stroke: var(--warning); }
+    .agent-synthesis .agent-name { color: var(--warning); }
+
+    /* Connection Lines */
+    .connections {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .connections svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .connection-line {
+      stroke: var(--border-bright);
+      stroke-width: 2;
+      fill: none;
+      stroke-dasharray: 6 4;
+    }
+
+    /* Internal squad lines */
+    .squad-lines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .squad-lines svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .internal-line {
+      stroke: var(--border-bright);
+      stroke-width: 1.5;
+      stroke-dasharray: 3 3;
+    }
+
+    /* Animated flow dots */
+    .flow-dot {
+      filter: drop-shadow(0 0 3px currentColor);
+    }
+
+    @keyframes flowPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    .flow-dot {
+      animation: flowPulse 1.2s ease-in-out infinite;
+    }
+
+    /* Center debate area */
+    .debate-zone {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 60px;
+      border: 2px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+    }
+
+    .debate-label {
+      text-align: center;
+    }
+
+    .debate-label .title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--fg-primary);
+      margin-bottom: 2px;
+    }
+
+    .debate-label .subtitle {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Connection Lines SVG -->
+    <svg class="connections" viewBox="0 0 700 550">
+      <!-- Intake to Catalyst Squad -->
+      <path class="connection-line" d="M 350 75 Q 250 100 130 145" />
+      <!-- Intake to Fire Squad -->
+      <path class="connection-line" d="M 350 75 Q 450 100 570 145" />
+      <!-- Catalyst to Debate Zone -->
+      <path class="connection-line" d="M 240 250 L 280 275" />
+      <!-- Fire to Debate Zone -->
+      <path class="connection-line" d="M 460 250 L 420 275" />
+      <!-- Debate Zone to Synthesis -->
+      <path class="connection-line" d="M 350 335 L 350 470" />
+      
+      <!-- Animated flow dots - Main flow -->
+      <circle class="flow-dot" r="5" fill="var(--accent)" style="animation-delay: 0s">
+        <animateMotion dur="2s" repeatCount="indefinite" path="M 350 75 Q 250 100 130 145" />
+      </circle>
+      <circle class="flow-dot" r="5" fill="var(--accent)" style="animation-delay: 0.3s">
+        <animateMotion dur="2s" repeatCount="indefinite" path="M 350 75 Q 450 100 570 145" />
+      </circle>
+      <circle class="flow-dot" r="5" fill="var(--success)" style="animation-delay: 0.8s">
+        <animateMotion dur="1.2s" repeatCount="indefinite" path="M 240 250 L 280 275" />
+      </circle>
+      <circle class="flow-dot" r="5" fill="var(--error)" style="animation-delay: 1s">
+        <animateMotion dur="1.2s" repeatCount="indefinite" path="M 460 250 L 420 275" />
+      </circle>
+      <circle class="flow-dot" r="5" fill="var(--warning)" style="animation-delay: 1.4s">
+        <animateMotion dur="1.8s" repeatCount="indefinite" path="M 350 335 L 350 470" />
+      </circle>
+    </svg>
+
+    <!-- Intake Agent -->
+    <div class="agent agent-intake">
+      <div class="agent-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+      <div class="agent-name">Intake</div>
+      <div class="agent-role">Problem Analysis</div>
+    </div>
+
+    <!-- Catalyst Squad -->
+    <div class="squad squad-catalyst">
+      <div class="squad-label">Catalyst Squad</div>
+      
+      <!-- Internal lines -->
+      <svg class="squad-lines" viewBox="0 0 220 210">
+        <line class="internal-line" x1="110" y1="75" x2="45" y2="145" />
+        <line class="internal-line" x1="110" y1="75" x2="110" y2="145" />
+        <line class="internal-line" x1="110" y1="75" x2="175" y2="145" />
+        
+        <circle class="flow-dot" r="4" fill="var(--success)" style="animation-delay: 0.2s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 45 145 L 110 75" />
+        </circle>
+        <circle class="flow-dot" r="4" fill="var(--success)" style="animation-delay: 0.5s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 110 145 L 110 75" />
+        </circle>
+        <circle class="flow-dot" r="4" fill="var(--success)" style="animation-delay: 0.8s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 175 145 L 110 75" />
+        </circle>
+      </svg>
+
+      <div class="squad-main">
+        <div class="agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div class="agent-name">Lead</div>
+        <div class="agent-role">Advocate</div>
+      </div>
+
+      <div class="sub-agent sub-agent-1">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">VC Partner</div>
+      </div>
+
+      <div class="sub-agent sub-agent-2">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">Product Owner</div>
+      </div>
+
+      <div class="sub-agent sub-agent-3">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">Market Analyst</div>
+      </div>
+    </div>
+
+    <!-- Fire Squad -->
+    <div class="squad squad-fire">
+      <div class="squad-label">Fire Squad</div>
+      
+      <!-- Internal lines -->
+      <svg class="squad-lines" viewBox="0 0 220 210">
+        <line class="internal-line" x1="110" y1="75" x2="45" y2="145" />
+        <line class="internal-line" x1="110" y1="75" x2="110" y2="145" />
+        <line class="internal-line" x1="110" y1="75" x2="175" y2="145" />
+        
+        <circle class="flow-dot" r="4" fill="var(--error)" style="animation-delay: 0.3s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 45 145 L 110 75" />
+        </circle>
+        <circle class="flow-dot" r="4" fill="var(--error)" style="animation-delay: 0.6s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 110 145 L 110 75" />
+        </circle>
+        <circle class="flow-dot" r="4" fill="var(--error)" style="animation-delay: 0.9s">
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 175 145 L 110 75" />
+        </circle>
+      </svg>
+
+      <div class="squad-main">
+        <div class="agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+          </svg>
+        </div>
+        <div class="agent-name">Lead</div>
+        <div class="agent-role">Skeptic</div>
+      </div>
+
+      <div class="sub-agent sub-agent-1">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">Technical Lead</div>
+      </div>
+
+      <div class="sub-agent sub-agent-2">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">Target User</div>
+      </div>
+
+      <div class="sub-agent sub-agent-3">
+        <div class="sub-agent-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div class="sub-agent-name">Devil's Advocate</div>
+      </div>
+    </div>
+
+    <!-- Debate Zone -->
+    <div class="debate-zone">
+      <div class="debate-label">
+        <div class="title">Deliberation</div>
+        <div class="subtitle">Bull vs Bear</div>
+      </div>
+    </div>
+
+    <!-- Synthesis Agent -->
+    <div class="agent agent-synthesis">
+      <div class="agent-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      </div>
+      <div class="agent-name">Synthesis</div>
+      <div class="agent-role">Market Fit Scan</div>
+    </div>
+  </div>
+</body>
+</html>
