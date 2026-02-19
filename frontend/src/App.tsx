@@ -489,30 +489,34 @@ function ProcessingView({ phase }: { phase: string }) {
   return (
     <div className="text-center reveal-up">
       <p className="label text-[var(--accent)] mb-2">Council in Session</p>
-      <h2 className="font-display text-2xl text-white mb-6">ANALYSIS IN PROGRESS</h2>
+      <h2 className="font-display text-2xl text-white mb-4">ANALYSIS IN PROGRESS</h2>
+
+      {/* Phase indicator - moved to top */}
+      <div className="flex justify-center gap-2 mb-6">
+        <div className={`relative flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-wider transition-all ${phase === 'intake' ? 'text-[var(--accent)]' : 'text-[var(--fg-subtle)]'}`}>
+          {phase === 'intake' && <span className="absolute inset-0 bg-[var(--accent)]/5 rounded" />}
+          <span className={`relative w-1.5 h-1.5 rounded-full ${phase === 'intake' ? 'bg-[var(--accent)] animate-pulse' : 'bg-[var(--fg-subtle)]/30'}`} />
+          <span className="relative">intake</span>
+        </div>
+        <div className={`relative flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'catalyst' ? 'text-[#4ade80]' : 'text-[var(--fg-subtle)]'}`}>
+          {(phase === 'squads' || phase === 'catalyst') && <span className="absolute inset-0 bg-[#4ade80]/5 rounded" />}
+          <span className={`relative w-1.5 h-1.5 rounded-full ${phase === 'squads' || phase === 'catalyst' ? 'bg-[#4ade80] animate-pulse' : 'bg-[var(--fg-subtle)]/30'}`} />
+          <span className="relative">catalyst</span>
+        </div>
+        <div className={`relative flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'fire' ? 'text-[#f87171]' : 'text-[var(--fg-subtle)]'}`}>
+          {(phase === 'squads' || phase === 'fire') && <span className="absolute inset-0 bg-[#f87171]/5 rounded" />}
+          <span className={`relative w-1.5 h-1.5 rounded-full ${phase === 'squads' || phase === 'fire' ? 'bg-[#f87171] animate-pulse' : 'bg-[var(--fg-subtle)]/30'}`} />
+          <span className="relative">fire</span>
+        </div>
+        <div className={`relative flex items-center gap-2 px-3 py-1.5 text-xs uppercase tracking-wider transition-all ${phase === 'synthesis' ? 'text-[#fbbf24]' : 'text-[var(--fg-subtle)]'}`}>
+          {phase === 'synthesis' && <span className="absolute inset-0 bg-[#fbbf24]/5 rounded" />}
+          <span className={`relative w-1.5 h-1.5 rounded-full ${phase === 'synthesis' ? 'bg-[#fbbf24] animate-pulse' : 'bg-[var(--fg-subtle)]/30'}`} />
+          <span className="relative">synthesis</span>
+        </div>
+      </div>
 
       {/* Agent Council Visualization */}
       <AgentCouncilLoader phase={phase as 'intake' | 'catalyst' | 'fire' | 'squads' | 'synthesis'} />
-
-      {/* Phase indicator */}
-      <div className="flex justify-center gap-6 mt-6">
-        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'intake' ? 'text-[var(--accent)]' : 'text-[var(--fg-subtle)]'}`}>
-          {phase === 'intake' && <span className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full animate-pulse" />}
-          intake
-        </div>
-        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'catalyst' ? 'text-[#4ade80]' : 'text-[var(--fg-subtle)]'}`}>
-          {(phase === 'squads' || phase === 'catalyst') && <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse" />}
-          catalyst
-        </div>
-        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'fire' ? 'text-[#f87171]' : 'text-[var(--fg-subtle)]'}`}>
-          {(phase === 'squads' || phase === 'fire') && <span className="w-1.5 h-1.5 bg-[#f87171] rounded-full animate-pulse" />}
-          fire
-        </div>
-        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'synthesis' ? 'text-[#fbbf24]' : 'text-[var(--fg-subtle)]'}`}>
-          {phase === 'synthesis' && <span className="w-1.5 h-1.5 bg-[#fbbf24] rounded-full animate-pulse" />}
-          synthesis
-        </div>
-      </div>
 
       <p className="text-[var(--fg-subtle)] text-xs mt-6">Full analysis takes 60-90 seconds</p>
     </div>
