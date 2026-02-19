@@ -102,7 +102,7 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
         />
 
         {/* === ANIMATED FLOW DOTS === */}
-        {/* Note: animateMotion paths are absolute - no cx/cy needed on circles */}
+        {/* Paths are absolute coords. Varied durations create natural stagger without begin delays (which cause origin flash). */}
         
         {/* Intake to Catalyst */}
         <circle r="4" fill="#22c55e" filter="url(#glow-green)">
@@ -111,44 +111,44 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
         
         {/* Intake to Fire */}
         <circle r="4" fill="#22c55e" filter="url(#glow-green)">
-          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 400 95 Q 500 130 635 175" begin="0.4s" />
+          <animateMotion dur="2.9s" repeatCount="indefinite" path="M 400 95 Q 500 130 635 175" />
         </circle>
 
         {/* Catalyst sub-agents to Lead */}
         <circle r="3" fill="#4ade80" filter="url(#glow-green)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 90 330 L 140 280" begin="0.2s" />
+          <animateMotion dur="1.6s" repeatCount="indefinite" path="M 90 330 L 140 280" />
         </circle>
         <circle r="3" fill="#4ade80" filter="url(#glow-green)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 165 330 L 165 280" begin="0.6s" />
+          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 165 330 L 165 280" />
         </circle>
         <circle r="3" fill="#4ade80" filter="url(#glow-green)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 240 330 L 190 280" begin="1.0s" />
+          <animateMotion dur="2.0s" repeatCount="indefinite" path="M 240 330 L 190 280" />
         </circle>
 
         {/* Fire sub-agents to Lead */}
         <circle r="3" fill="#f87171" filter="url(#glow-red)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 560 330 L 610 280" begin="0.3s" />
+          <animateMotion dur="1.7s" repeatCount="indefinite" path="M 560 330 L 610 280" />
         </circle>
         <circle r="3" fill="#f87171" filter="url(#glow-red)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 635 330 L 635 280" begin="0.7s" />
+          <animateMotion dur="1.9s" repeatCount="indefinite" path="M 635 330 L 635 280" />
         </circle>
         <circle r="3" fill="#f87171" filter="url(#glow-red)">
-          <animateMotion dur="1.8s" repeatCount="indefinite" path="M 710 330 L 660 280" begin="1.1s" />
+          <animateMotion dur="2.1s" repeatCount="indefinite" path="M 710 330 L 660 280" />
         </circle>
 
         {/* Catalyst Lead to Debate */}
         <circle r="4" fill="#4ade80" filter="url(#glow-green)">
-          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 165 280 L 165 420 Q 200 470 340 470" begin="0.8s" />
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 165 280 L 165 420 Q 200 470 340 470" />
         </circle>
 
         {/* Fire Lead to Debate */}
         <circle r="4" fill="#f87171" filter="url(#glow-red)">
-          <animateMotion dur="2.5s" repeatCount="indefinite" path="M 635 280 L 635 420 Q 600 470 460 470" begin="1.0s" />
+          <animateMotion dur="2.7s" repeatCount="indefinite" path="M 635 280 L 635 420 Q 600 470 460 470" />
         </circle>
 
         {/* Debate to Synthesis */}
         <circle r="4" fill="#fbbf24" filter="url(#glow-yellow)">
-          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 400 510 L 400 560" begin="1.5s" />
+          <animateMotion dur="1.5s" repeatCount="indefinite" path="M 400 510 L 400 560" />
         </circle>
 
         {/* === INTAKE NODE === */}
