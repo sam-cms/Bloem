@@ -161,7 +161,7 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
             <line x1="-6" y1="12" x2="2" y2="12" stroke={phase === 'intake' ? '#22c55e' : 'rgba(255,255,255,0.5)'} strokeWidth="1.5" />
           </g>
           <text x="400" y="115" textAnchor="middle" fill={phase === 'intake' ? '#22c55e' : 'rgba(255,255,255,0.7)'} fontSize="13" fontWeight="700" fontFamily="system-ui" letterSpacing="0.1em">INTAKE</text>
-          <text x="400" y="132" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="monospace" letterSpacing="0.05em">PROBLEM ANALYSIS</text>
+          <text x="400" y="132" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="8" fontFamily="monospace" letterSpacing="0.05em">PROBLEM ANALYSIS</text>
         </g>
 
         {/* === CATALYST SQUAD === */}
@@ -173,22 +173,22 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
             <path d="M 0 -12 L -8 2 L -2 2 L -4 14 L 8 -2 L 2 -2 Z" fill="none" stroke={isCatalystActive ? '#4ade80' : 'rgba(74,222,128,0.6)'} strokeWidth="1.5" />
           </g>
           <text x="165" y="275" textAnchor="middle" fill={isCatalystActive ? '#4ade80' : 'rgba(74,222,128,0.7)'} fontSize="11" fontWeight="700" fontFamily="system-ui">LEAD</text>
-          <text x="165" y="290" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">ADVOCATE</text>
+          <text x="165" y="290" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">ADVOCATE</text>
 
           {/* Sub-agents */}
           <rect x="60" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(74,222,128,0.3)" strokeWidth="1" />
           <rect x="80" y="322" width="20" height="14" fill="none" stroke="rgba(74,222,128,0.5)" strokeWidth="1" rx="1" />
-          <text x="90" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">VC PARTNER</text>
+          <text x="90" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">VC PARTNER</text>
 
           <rect x="135" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(74,222,128,0.3)" strokeWidth="1" />
           <rect x="155" y="320" width="20" height="18" fill="none" stroke="rgba(74,222,128,0.5)" strokeWidth="1" rx="1" />
-          <text x="165" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">PRODUCT OWNER</text>
+          <text x="165" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">PRODUCT OWNER</text>
 
           <rect x="210" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(74,222,128,0.3)" strokeWidth="1" />
           <rect x="225" y="323" width="8" height="18" fill="none" stroke="rgba(74,222,128,0.5)" strokeWidth="1" />
           <rect x="237" y="328" width="8" height="13" fill="none" stroke="rgba(74,222,128,0.5)" strokeWidth="1" />
           <rect x="249" y="320" width="8" height="21" fill="none" stroke="rgba(74,222,128,0.5)" strokeWidth="1" />
-          <text x="240" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">MARKET ANALYST</text>
+          <text x="240" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">MARKET ANALYST</text>
         </g>
 
         {/* === FIRE SQUAD === */}
@@ -200,29 +200,29 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
             <path d="M 0 -14 Q 6 -8 4 -2 Q 8 -6 6 -12 Q 12 -4 8 6 Q 6 10 0 12 Q -6 10 -8 6 Q -12 -4 -6 -12 Q -8 -6 -4 -2 Q -6 -8 0 -14" fill="none" stroke={isFireActive ? '#f87171' : 'rgba(248,113,113,0.6)'} strokeWidth="1.5" />
           </g>
           <text x="635" y="275" textAnchor="middle" fill={isFireActive ? '#f87171' : 'rgba(248,113,113,0.7)'} fontSize="11" fontWeight="700" fontFamily="system-ui">LEAD</text>
-          <text x="635" y="290" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">SKEPTIC</text>
+          <text x="635" y="290" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">SKEPTIC</text>
 
           {/* Sub-agents */}
           <rect x="530" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(248,113,113,0.3)" strokeWidth="1" />
           <text x="560" y="338" textAnchor="middle" fill="rgba(248,113,113,0.5)" fontSize="14" fontFamily="monospace">&lt;/&gt;</text>
-          <text x="560" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">TECHNICAL LEAD</text>
+          <text x="560" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">TECHNICAL LEAD</text>
 
           <rect x="605" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(248,113,113,0.3)" strokeWidth="1" />
           <circle cx="635" cy="327" r="8" fill="none" stroke="rgba(248,113,113,0.5)" strokeWidth="1" />
           <circle cx="635" cy="325" r="3" fill="rgba(248,113,113,0.5)" />
-          <text x="635" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7" fontFamily="monospace">TARGET USER</text>
+          <text x="635" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="8" fontFamily="monospace">TARGET USER</text>
 
           <rect x="680" y="310" width="60" height="45" fill="#0a0a0a" stroke="rgba(248,113,113,0.3)" strokeWidth="1" />
           <path d="M 710 322 L 700 342 L 720 342 Z" fill="none" stroke="rgba(248,113,113,0.5)" strokeWidth="1.5" />
           <text x="710" y="335" textAnchor="middle" fill="rgba(248,113,113,0.5)" fontSize="10" fontWeight="bold">!</text>
-          <text x="710" y="370" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="6" fontFamily="monospace">DEVIL'S ADVOCATE</text>
+          <text x="710" y="370" textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="7" fontFamily="monospace">DEVIL'S ADVOCATE</text>
         </g>
 
         {/* === DELIBERATION / DEBATE ZONE === */}
         <g>
           <rect x="320" y="450" width="160" height="60" fill="#0a0a0a" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
           <text x="400" y="478" textAnchor="middle" fill="rgba(255,255,255,0.8)" fontSize="14" fontWeight="700" fontFamily="system-ui" fontStyle="italic">Deliberation</text>
-          <text x="400" y="495" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="monospace" letterSpacing="0.1em">BULL VS BEAR DEBATE</text>
+          <text x="400" y="495" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="8" fontFamily="monospace" letterSpacing="0.1em">BULL VS BEAR DEBATE</text>
         </g>
 
         {/* === SYNTHESIS NODE === */}
@@ -233,7 +233,7 @@ export function AgentCouncilLoader({ phase = 'intake' }: AgentCouncilLoaderProps
             <path d="M -4 0 L -1 4 L 6 -4" fill="none" stroke={phase === 'synthesis' ? '#fbbf24' : 'rgba(251,191,36,0.6)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </g>
           <text x="400" y="645" textAnchor="middle" fill={phase === 'synthesis' ? '#fbbf24' : 'rgba(251,191,36,0.7)'} fontSize="13" fontWeight="700" fontFamily="system-ui" letterSpacing="0.1em">SYNTHESIS</text>
-          <text x="400" y="662" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="monospace" letterSpacing="0.05em">MARKET FIT SCAN</text>
+          <text x="400" y="662" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="8" fontFamily="monospace" letterSpacing="0.05em">MARKET FIT SCAN</text>
         </g>
 
         {/* Grid overlay */}
