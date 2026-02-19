@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import AudioVisualizer from './components/AudioVisualizer'
+import { AgentCouncilLoader } from './components/AgentCouncilLoader'
 
 type DimensionScores = {
   problemClarity: number
@@ -135,19 +136,35 @@ export default function App() {
       if (!submitRes.ok) throw new Error('Failed to submit')
       const { jobId } = await submitRes.json()
 
-      const phases = ['intake', 'catalyst', 'fire', 'synthesis']
-      let phaseIndex = 0
+      // Phase timing: 5s intake, 10s squads (catalyst+fire together), then synthesis
+      const phases = ['intake', 'squads', 'synthesis'] as const
+      const phaseTiming = { intake: 5000, squads: 10000, synthesis: 0 }
+      
+      let currentPhaseIdx = 0
+      let phaseStartTime = Date.now()
       let attempts = 0
 
-      while (attempts < 60) {
-        await new Promise(r => setTimeout(r, 3000))
-        phaseIndex = Math.min(phaseIndex + 1, phases.length - 1)
-        setCurrentPhase(phases[phaseIndex])
+      setCurrentPhase('intake')
+
+      while (attempts < 120) {
+        await new Promise(r => setTimeout(r, 2000))
+
+        // Advance phase based on timing
+        const currentPhaseName = phases[currentPhaseIdx]
+        const elapsed = Date.now() - phaseStartTime
+        
+        if (currentPhaseIdx < phases.length - 1 && elapsed >= phaseTiming[currentPhaseName]) {
+          currentPhaseIdx++
+          phaseStartTime = Date.now()
+          setCurrentPhase(phases[currentPhaseIdx])
+        }
 
         const pollRes = await fetch(`${API_BASE}/prebloom/evaluate/${jobId}`)
         const pollData = await pollRes.json()
 
         if (pollData.status === 'completed') {
+          setCurrentPhase('synthesis')
+          await new Promise(r => setTimeout(r, 1000))
           setVerdict(pollData.verdict)
           setState('report')
           return
@@ -469,51 +486,35 @@ export default function App() {
 }
 
 function ProcessingView({ phase }: { phase: string }) {
-  const phases = [
-    { id: 'intake', label: 'INTAKE', desc: 'Understanding your submission' },
-    { id: 'catalyst', label: 'CATALYST SQUAD', desc: 'Building the bull case' },
-    { id: 'fire', label: 'FIRE SQUAD', desc: 'Stress-testing the thesis' },
-    { id: 'synthesis', label: 'SYNTHESIS', desc: 'Deliberating verdict' },
-  ]
-  const currentIndex = phases.findIndex(p => p.id === phase)
-
   return (
     <div className="text-center reveal-up">
-      <div className="mb-8">
-        <div className="inline-block w-16 h-16 border border-[var(--accent)] relative">
-          <div className="absolute inset-2 border border-[var(--accent)] animate-pulse" />
-          <div className="absolute inset-4 bg-[var(--accent)]" />
+      <p className="label text-[var(--accent)] mb-2">Council in Session</p>
+      <h2 className="font-display text-2xl text-white mb-6">ANALYSIS IN PROGRESS</h2>
+
+      {/* Agent Council Visualization */}
+      <AgentCouncilLoader phase={phase as 'intake' | 'catalyst' | 'fire' | 'squads' | 'synthesis'} />
+
+      {/* Phase indicator */}
+      <div className="flex justify-center gap-6 mt-6">
+        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'intake' ? 'text-[var(--accent)]' : 'text-[var(--fg-subtle)]'}`}>
+          {phase === 'intake' && <span className="w-1.5 h-1.5 bg-[var(--accent)] rounded-full animate-pulse" />}
+          intake
+        </div>
+        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'catalyst' ? 'text-[#4ade80]' : 'text-[var(--fg-subtle)]'}`}>
+          {(phase === 'squads' || phase === 'catalyst') && <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse" />}
+          catalyst
+        </div>
+        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'squads' || phase === 'fire' ? 'text-[#f87171]' : 'text-[var(--fg-subtle)]'}`}>
+          {(phase === 'squads' || phase === 'fire') && <span className="w-1.5 h-1.5 bg-[#f87171] rounded-full animate-pulse" />}
+          fire
+        </div>
+        <div className={`flex items-center gap-2 text-xs uppercase tracking-wider transition-all ${phase === 'synthesis' ? 'text-[#fbbf24]' : 'text-[var(--fg-subtle)]'}`}>
+          {phase === 'synthesis' && <span className="w-1.5 h-1.5 bg-[#fbbf24] rounded-full animate-pulse" />}
+          synthesis
         </div>
       </div>
 
-      <p className="label text-[var(--accent)] mb-4">Council in Session</p>
-      <h2 className="font-display text-3xl text-white mb-12">ANALYSIS IN PROGRESS</h2>
-
-      <div className="space-y-3 text-left max-w-sm mx-auto">
-        {phases.map((p, i) => {
-          const isActive = i === currentIndex
-          const isComplete = i < currentIndex
-          return (
-            <div 
-              key={p.id}
-              className={`flex items-center gap-4 p-4 border transition-all ${
-                isActive ? 'border-[var(--accent)] bg-[var(--accent)]/5' : 
-                isComplete ? 'border-[var(--border)] opacity-50' : 'border-[var(--border)] opacity-30'
-              }`}
-            >
-              <div className={`w-2 h-2 rounded-full ${
-                isActive ? 'bg-[var(--accent)] animate-pulse' : isComplete ? 'bg-[var(--fg-subtle)]' : 'bg-[var(--border)]'
-              }`} />
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${isActive ? 'text-[var(--accent)]' : 'text-[var(--fg-muted)]'}`}>{p.label}</p>
-                <p className="text-xs text-[var(--fg-subtle)]">{p.desc}</p>
-              </div>
-              {isActive && <div className="spinner" />}
-            </div>
-          )
-        })}
-      </div>
-      <p className="text-[var(--fg-subtle)] text-sm mt-12">Full analysis takes 60-90 seconds</p>
+      <p className="text-[var(--fg-subtle)] text-xs mt-6">Full analysis takes 60-90 seconds</p>
     </div>
   )
 }

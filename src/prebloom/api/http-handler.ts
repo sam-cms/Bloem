@@ -1,14 +1,36 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import crypto from "node:crypto";
+import { z } from "zod";
 
 import { loadConfig } from "../../config/config.js";
 import { evaluateIdea, type EvaluationOptions } from "../swarm/orchestrator.js";
 import { ideaInputSchema, type EvaluationJob } from "../types.js";
 import { listSkills } from "../skills/index.js";
 import { transcribeAudio, checkWhisperHealth } from "../audio/transcribe.js";
+import { runMarketResearch } from "../groundwork/market-research.js";
+import { runDeepResearch } from "../groundwork/deep-research.js";
+import type { MarketResearchResult } from "../groundwork/types.js";
 
 // In-memory job store (replace with persistent storage in production)
 const jobs = new Map<string, EvaluationJob>();
+const researchJobs = new Map<
+  string,
+  {
+    id: string;
+    status: "pending" | "processing" | "completed" | "failed";
+    result?: MarketResearchResult;
+    error?: string;
+    createdAt: string;
+    completedAt?: string;
+  }
+>();
+
+// Research request schema
+const researchRequestSchema = z.object({
+  idea: z.string().min(10, "Idea must be at least 10 characters"),
+  industry: z.string().optional(),
+  researchType: z.enum(["quick", "deep"]).default("quick"),
+});
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
@@ -260,6 +282,127 @@ export async function handlePrebloomHttpRequest(
       message: "Evaluation in progress...",
     });
     return true;
+  }
+
+  // POST /prebloom/groundwork/research — Start market research (async)
+  if (url.pathname === "/prebloom/groundwork/research" && req.method === "POST") {
+    try {
+      const body = await readJsonBody(req);
+      const parseResult = researchRequestSchema.safeParse(body);
+
+      if (!parseResult.success) {
+        sendJson(res, 400, {
+          error: "Invalid input",
+          details: parseResult.error.issues,
+        });
+        return true;
+      }
+
+      const request = parseResult.data;
+      const jobId = crypto.randomUUID();
+
+      // Create job record
+      const job = {
+        id: jobId,
+        status: "processing" as const,
+        createdAt: new Date().toISOString(),
+      };
+      researchJobs.set(jobId, job);
+
+      // Start research async - choose function based on type
+      const researchFn = request.researchType === "deep" ? runDeepResearch : runMarketResearch;
+      researchFn(request)
+        .then((result) => {
+          const job = researchJobs.get(jobId);
+          if (job) {
+            job.status = "completed";
+            job.result = result;
+            job.completedAt = new Date().toISOString();
+          }
+        })
+        .catch((error) => {
+          const job = researchJobs.get(jobId);
+          if (job) {
+            job.status = "failed";
+            job.error = error.message;
+            job.completedAt = new Date().toISOString();
+          }
+        });
+
+      sendJson(res, 202, {
+        jobId,
+        status: "processing",
+        message: "Research started. Poll /prebloom/groundwork/research/:id for results.",
+      });
+      return true;
+    } catch (error) {
+      sendError(res, 500, "Internal server error");
+      return true;
+    }
+  }
+
+  // GET /prebloom/groundwork/research/:id — Get research status/result
+  const researchMatch = url.pathname.match(/^\/prebloom\/groundwork\/research\/([a-f0-9-]+)$/);
+  if (researchMatch && req.method === "GET") {
+    const jobId = researchMatch[1];
+    const job = researchJobs.get(jobId);
+
+    if (!job) {
+      sendError(res, 404, "Research job not found");
+      return true;
+    }
+
+    if (job.status === "completed") {
+      sendJson(res, 200, {
+        status: "completed",
+        result: job.result,
+      });
+      return true;
+    }
+
+    if (job.status === "failed") {
+      sendJson(res, 200, {
+        status: "failed",
+        error: job.error,
+      });
+      return true;
+    }
+
+    sendJson(res, 200, {
+      status: job.status,
+      message: "Research in progress...",
+    });
+    return true;
+  }
+
+  // POST /prebloom/groundwork/research/sync — Synchronous market research
+  if (url.pathname === "/prebloom/groundwork/research/sync" && req.method === "POST") {
+    try {
+      const body = await readJsonBody(req);
+      const parseResult = researchRequestSchema.safeParse(body);
+
+      if (!parseResult.success) {
+        sendJson(res, 400, {
+          error: "Invalid input",
+          details: parseResult.error.issues,
+        });
+        return true;
+      }
+
+      const request = parseResult.data;
+      const researchFn = request.researchType === "deep" ? runDeepResearch : runMarketResearch;
+      const result = await researchFn(request);
+
+      sendJson(res, 200, {
+        status: "completed",
+        result,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Research failed";
+      sendError(res, 500, message);
+      return true;
+    }
   }
 
   // Unknown route

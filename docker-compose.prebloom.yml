@@ -52,6 +52,7 @@ services:
       HOME: /home/node
       NODE_ENV: production
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN:-prebloom-internal}
       CLAWDBOT_GATEWAY_BIND: lan
       WHISPER_SERVICE_URL: http://whisper:8000
