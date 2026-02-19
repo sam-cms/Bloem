@@ -1,5 +1,5 @@
 /**
- * AgentCouncilLoader - Animated visualization of the Prebloom agent council
+ * AgentCouncilLoader - Animated visualization of the Prebloom AI Squads
  * Pure React + SVG + CSS animations
  */
 

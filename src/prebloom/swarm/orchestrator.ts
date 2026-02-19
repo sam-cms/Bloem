@@ -267,7 +267,7 @@ function parseDimensionScores(analysis: string): DimensionScores {
 }
 
 function parseSynthesisOutput(analysis: string): {
-  decision: "PASS" | "FAIL" | "CONDITIONAL_PASS";
+  decision: "STRONG_SIGNAL" | "CONDITIONAL_FIT" | "WEAK_SIGNAL" | "NO_MARKET_FIT";
   confidence: number;
   dimensions: DimensionScores;
   executiveSummary: string;
@@ -279,19 +279,22 @@ function parseSynthesisOutput(analysis: string): {
   // Safety: ensure analysis is a string
   const safeAnalysis = analysis || "";
 
-  // Determine decision
-  let decision: "PASS" | "FAIL" | "CONDITIONAL_PASS" = "CONDITIONAL_PASS";
+  // Determine decision from Market Fit Scan result
+  let decision: "STRONG_SIGNAL" | "CONDITIONAL_FIT" | "WEAK_SIGNAL" | "NO_MARKET_FIT" =
+    "CONDITIONAL_FIT";
   const upperAnalysis = safeAnalysis.toUpperCase();
 
-  if (upperAnalysis.includes("VERDICT: PASS") && !upperAnalysis.includes("CONDITIONAL")) {
-    decision = "PASS";
-  } else if (upperAnalysis.includes("VERDICT: FAIL")) {
-    decision = "FAIL";
+  if (upperAnalysis.includes("STRONG_SIGNAL") || upperAnalysis.includes("STRONG SIGNAL")) {
+    decision = "STRONG_SIGNAL";
+  } else if (upperAnalysis.includes("NO_MARKET_FIT") || upperAnalysis.includes("NO MARKET FIT")) {
+    decision = "NO_MARKET_FIT";
+  } else if (upperAnalysis.includes("WEAK_SIGNAL") || upperAnalysis.includes("WEAK SIGNAL")) {
+    decision = "WEAK_SIGNAL";
   } else if (
-    upperAnalysis.includes("CONDITIONAL_PASS") ||
-    upperAnalysis.includes("CONDITIONAL PASS")
+    upperAnalysis.includes("CONDITIONAL_FIT") ||
+    upperAnalysis.includes("CONDITIONAL FIT")
   ) {
-    decision = "CONDITIONAL_PASS";
+    decision = "CONDITIONAL_FIT";
   }
 
   // Extract confidence score (look for patterns like "7/10" or "Confidence: 7")

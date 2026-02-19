@@ -22,32 +22,32 @@ export interface AgentOutput {
 
 // Dimension scores for the scorecard
 export interface DimensionScores {
-  problemClarity: number;   // 1-10: How clear/validated is the problem?
-  marketSize: number;       // 1-10: TAM/SAM opportunity
-  competitionRisk: number;  // 1-10: Defensibility (10 = low risk, moat exists)
-  execution: number;        // 1-10: Team/founder ability to execute
-  businessModel: number;    // 1-10: Revenue model clarity & viability
+  problemClarity: number; // 1-10: How clear/validated is the problem?
+  marketSize: number; // 1-10: TAM/SAM opportunity
+  competitionRisk: number; // 1-10: Defensibility (10 = low risk, moat exists)
+  execution: number; // 1-10: Team/founder ability to execute
+  businessModel: number; // 1-10: Revenue model clarity & viability
 }
 
-// Final verdict structure
+// Market Fit Scan result structure
 export interface Verdict {
   id: string;
   createdAt: string;
   input: IdeaInput;
-  
+
   // Agent outputs
   intake: AgentOutput;
   catalyst: AgentOutput;
   fire: AgentOutput;
   synthesis: AgentOutput;
-  
-  // Final verdict
-  decision: "PASS" | "FAIL" | "CONDITIONAL_PASS";
+
+  // Market Fit Scan result
+  decision: "STRONG_SIGNAL" | "CONDITIONAL_FIT" | "WEAK_SIGNAL" | "NO_MARKET_FIT";
   confidence: number; // 1-10
-  
+
   // Dimension breakdown
   dimensions: DimensionScores;
-  
+
   executiveSummary: string;
   keyStrengths: string[];
   keyRisks: string[];

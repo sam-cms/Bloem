@@ -12,7 +12,7 @@ type DimensionScores = {
 }
 
 type Verdict = {
-  decision: 'PASS' | 'FAIL' | 'CONDITIONAL_PASS'
+  decision: 'STRONG_SIGNAL' | 'CONDITIONAL_FIT' | 'WEAK_SIGNAL' | 'NO_MARKET_FIT'
   confidence: number
   dimensions: DimensionScores
   executiveSummary: string
@@ -488,7 +488,7 @@ export default function App() {
 function ProcessingView({ phase }: { phase: string }) {
   return (
     <div className="text-center reveal-up">
-      <p className="label text-[var(--accent)] mb-2">Council in Session</p>
+      <p className="label text-[var(--accent)] mb-2">AI Squads Analyzing</p>
       <h2 className="font-display text-2xl text-white mb-4">ANALYSIS IN PROGRESS</h2>
 
       {/* Phase indicator - moved to top */}
@@ -515,7 +515,7 @@ function ProcessingView({ phase }: { phase: string }) {
         </div>
       </div>
 
-      {/* Agent Council Visualization */}
+      {/* AI Squads Visualization */}
       <AgentCouncilLoader phase={phase as 'intake' | 'catalyst' | 'fire' | 'squads' | 'synthesis'} />
 
       <p className="text-[var(--fg-subtle)] text-xs mt-6">Full analysis takes 60-90 seconds</p>
@@ -598,10 +598,11 @@ function ReportContainer({
 }
 
 function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => void }) {
-  const classificationLabels = {
-    PASS: 'STRONG PASS',
-    CONDITIONAL_PASS: 'CONDITIONAL PASS',
-    FAIL: 'HARD NO',
+  const classificationLabels: Record<string, string> = {
+    STRONG_SIGNAL: 'STRONG SIGNAL',
+    CONDITIONAL_FIT: 'CONDITIONAL FIT',
+    WEAK_SIGNAL: 'WEAK SIGNAL',
+    NO_MARKET_FIT: 'NO MARKET FIT',
   }
 
   const dimensions = verdict.dimensions || {
@@ -788,12 +789,13 @@ function FullReportView({ verdict, idea, onReset }: { verdict: Verdict; idea: st
     businessModel: 5,
   }
 
-  const classificationConfig = {
-    PASS: { label: 'STRONG PASS', color: 'var(--accent)' },
-    CONDITIONAL_PASS: { label: 'CONDITIONAL PASS', color: 'var(--accent)' },
-    FAIL: { label: 'HARD NO', color: 'var(--accent)' },
+  const classificationConfig: Record<string, { label: string; color: string }> = {
+    STRONG_SIGNAL: { label: 'STRONG SIGNAL', color: 'var(--accent)' },
+    CONDITIONAL_FIT: { label: 'CONDITIONAL FIT', color: 'var(--accent)' },
+    WEAK_SIGNAL: { label: 'WEAK SIGNAL', color: '#fbbf24' },
+    NO_MARKET_FIT: { label: 'NO MARKET FIT', color: '#f87171' },
   }
-  const config = classificationConfig[verdict.decision]
+  const config = classificationConfig[verdict.decision] || classificationConfig.CONDITIONAL_FIT
 
   const toggleSection = (id: string) => {
     const newExpanded = new Set(expandedSections)
@@ -1312,9 +1314,9 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           </div>
           <div className="p-8 md:p-12">
             <span className="font-display text-6xl text-white/10 block mb-4">03</span>
-            <h3 className="font-display text-2xl uppercase mb-4">Verdict</h3>
+            <h3 className="font-display text-2xl uppercase mb-4">Market Fit Scan</h3>
             <p className="text-sm text-white/40 font-light leading-relaxed">
-              PASS, CONDITIONAL, or FAIL — with strengths, risks, and next steps.
+              Strong Signal, Conditional, or Weak — with strengths, risks, and next steps.
             </p>
           </div>
           <div className="p-8 md:p-12">
@@ -1334,10 +1336,10 @@ function LandingPageKronos({ onGetStarted }: { onGetStarted: () => void }) {
           
           <div className="bento-grid grid-cols-1 md:grid-cols-2">
             <div className="p-12 accent-forest">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--forest)] font-bold block mb-4">Verdict</span>
-              <h3 className="font-display text-3xl uppercase mb-6">Clear Decision</h3>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--forest)] font-bold block mb-4">Market Fit Scan</span>
+              <h3 className="font-display text-3xl uppercase mb-6">Clear Signal</h3>
               <p className="text-sm text-white/40 leading-relaxed font-light">
-                PASS / CONDITIONAL / FAIL with confidence score. No ambiguity.
+                Strong Signal / Conditional Fit / Weak Signal — with confidence score. No ambiguity.
               </p>
             </div>
             <div className="p-12 accent-coral">

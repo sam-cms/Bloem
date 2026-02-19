@@ -273,7 +273,12 @@ export function getStats(): {
   ).count;
 
   // Count by decision
-  const byDecision: Record<string, number> = { PASS: 0, CONDITIONAL_PASS: 0, FAIL: 0 };
+  const byDecision: Record<string, number> = {
+    STRONG_SIGNAL: 0,
+    CONDITIONAL_FIT: 0,
+    WEAK_SIGNAL: 0,
+    NO_MARKET_FIT: 0,
+  };
   const decisions = database
     .prepare(
       `SELECT json_extract(verdict_json, '$.decision') as decision, COUNT(*) as count 
