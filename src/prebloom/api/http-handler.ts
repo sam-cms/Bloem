@@ -4,12 +4,20 @@ import { z } from "zod";
 
 import { loadConfig } from "../../config/config.js";
 import { evaluateIdea, type EvaluationOptions } from "../swarm/orchestrator.js";
-import { ideaInputSchema, type EvaluationJob } from "../types.js";
+import {
+  ideaInputSchema,
+  iterationRequestSchema,
+  type EvaluationJob,
+  type Verdict,
+} from "../types.js";
 import { listSkills } from "../skills/index.js";
 import { transcribeAudio, checkWhisperHealth } from "../audio/transcribe.js";
 import { runMarketResearch } from "../groundwork/market-research.js";
 import { runDeepResearch } from "../groundwork/deep-research.js";
 import type { MarketResearchResult } from "../groundwork/types.js";
+
+// Maximum iterations allowed
+const MAX_ITERATIONS = 3;
 
 // In-memory job store (replace with persistent storage in production)
 const jobs = new Map<string, EvaluationJob>();
@@ -280,6 +288,153 @@ export async function handlePrebloomHttpRequest(
     sendJson(res, 200, {
       status: job.status,
       message: "Evaluation in progress...",
+    });
+    return true;
+  }
+
+  // POST /prebloom/iterate/:id — Submit iteration based on previous evaluation
+  const iterateMatch = url.pathname.match(/^\/prebloom\/iterate\/([a-f0-9-]+)$/);
+  if (iterateMatch && req.method === "POST") {
+    const previousJobId = iterateMatch[1];
+    const previousJob = jobs.get(previousJobId);
+
+    // Check previous job exists and is completed
+    if (!previousJob) {
+      sendError(res, 404, "Previous evaluation not found");
+      return true;
+    }
+
+    if (previousJob.status !== "completed" || !previousJob.verdict) {
+      sendError(res, 400, "Previous evaluation must be completed before iterating");
+      return true;
+    }
+
+    const previousVerdict = previousJob.verdict;
+
+    // Check iteration limit
+    if (previousVerdict.version >= MAX_ITERATIONS) {
+      sendJson(res, 400, {
+        error: "Iteration limit reached",
+        message: `You've refined this idea ${MAX_ITERATIONS} times. Consider proceeding with the current assessment, starting fresh with a new idea, or pivoting to a related concept.`,
+        version: previousVerdict.version,
+        maxIterations: MAX_ITERATIONS,
+      });
+      return true;
+    }
+
+    try {
+      const body = await readJsonBody(req);
+
+      // Validate iteration request
+      const parseResult = iterationRequestSchema.safeParse(body);
+      if (!parseResult.success) {
+        sendJson(res, 400, {
+          error: "Invalid iteration request",
+          details: parseResult.error.issues,
+        });
+        return true;
+      }
+
+      const iterationRequest = parseResult.data;
+      const jobId = crypto.randomUUID();
+
+      // Build updated input (merge original with any updates)
+      const updatedInput = {
+        ...previousJob.input,
+        ...iterationRequest.updatedPitch,
+      };
+
+      // Validate merged input
+      const inputValidation = ideaInputSchema.safeParse(updatedInput);
+      if (!inputValidation.success) {
+        sendJson(res, 400, {
+          error: "Invalid updated pitch",
+          details: inputValidation.error.issues,
+        });
+        return true;
+      }
+
+      // Create job record
+      const job: EvaluationJob = {
+        id: jobId,
+        status: "processing",
+        input: inputValidation.data,
+        createdAt: new Date().toISOString(),
+      };
+      jobs.set(jobId, job);
+
+      // Build evaluation options with iteration context
+      const options: EvaluationOptions = {
+        previousEvaluation: previousVerdict,
+        userResponses: iterationRequest.responses,
+      };
+
+      // Start evaluation async
+      evaluateIdea(inputValidation.data, options)
+        .then((verdict) => {
+          job.status = "completed";
+          job.verdict = verdict;
+          job.completedAt = new Date().toISOString();
+        })
+        .catch((error) => {
+          job.status = "failed";
+          job.error = error.message;
+          job.completedAt = new Date().toISOString();
+        });
+
+      // Return job ID immediately
+      sendJson(res, 202, {
+        jobId,
+        status: "processing",
+        version: previousVerdict.version + 1,
+        previousId: previousJobId,
+        message: `Iteration ${previousVerdict.version + 1} started. Poll /prebloom/evaluate/${jobId} for results.`,
+      });
+      return true;
+    } catch (error) {
+      sendError(res, 500, "Internal server error");
+      return true;
+    }
+  }
+
+  // GET /prebloom/history/:id — Get full version chain for an evaluation
+  const historyMatch = url.pathname.match(/^\/prebloom\/history\/([a-f0-9-]+)$/);
+  if (historyMatch && req.method === "GET") {
+    const jobId = historyMatch[1];
+    const job = jobs.get(jobId);
+
+    if (!job || !job.verdict) {
+      sendError(res, 404, "Evaluation not found");
+      return true;
+    }
+
+    // Build version chain by walking backwards
+    const versions: { id: string; version: number; decision: string; confidence: number }[] = [];
+    let current: EvaluationJob | undefined = job;
+
+    while (current && current.verdict) {
+      versions.unshift({
+        id: current.id,
+        version: current.verdict.version,
+        decision: current.verdict.decision,
+        confidence: current.verdict.confidence,
+      });
+
+      // Find previous version if exists
+      if (current.verdict.previousId) {
+        current = jobs.get(current.verdict.previousId);
+      } else {
+        break;
+      }
+    }
+
+    sendJson(res, 200, {
+      currentId: jobId,
+      currentVersion: job.verdict.version,
+      maxIterations: MAX_ITERATIONS,
+      canIterate: job.verdict.version < MAX_ITERATIONS,
+      versions,
+      actionItems: job.verdict.actionItems,
     });
     return true;
   }

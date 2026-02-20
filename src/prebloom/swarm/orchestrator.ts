@@ -2,12 +2,19 @@ import crypto from "node:crypto";
 
 import { loadConfig } from "../../config/config.js";
 import { resolveApiKeyForProvider } from "../../agents/model-auth.js";
-import type { IdeaInput, Verdict, AgentOutput, DimensionScores } from "../types.js";
+import type {
+  IdeaInput,
+  Verdict,
+  AgentOutput,
+  DimensionScores,
+  ActionItemResponse,
+} from "../types.js";
 import { INTAKE_SYSTEM_PROMPT } from "./agents/intake.js";
 import { CATALYST_SYSTEM_PROMPT } from "./agents/catalyst.js";
 import { FIRE_SYSTEM_PROMPT } from "./agents/fire.js";
 import { SYNTHESIS_SYSTEM_PROMPT } from "./agents/synthesis.js";
 import { applySkillById, getRegistry } from "../skills/index.js";
+import { extractActionItems } from "./action-items.js";
 
 export interface EvaluationOptions {
   /** Apply humanizer skill to outputs */
@@ -16,6 +23,10 @@ export interface EvaluationOptions {
   transcribe?: boolean;
   /** Custom skills to apply (by ID) */
   skills?: string[];
+  /** Previous evaluation for iteration context */
+  previousEvaluation?: Verdict;
+  /** User responses to action items (for iterations) */
+  userResponses?: ActionItemResponse[];
 }
 
 // Default model for Prebloom evaluations
@@ -119,6 +130,62 @@ ${input.whyYou ? `**Why You (Founder):** ${input.whyYou}` : ""}
 `.trim();
 }
 
+/**
+ * Build iteration context string for agents
+ * This provides context from previous evaluation and user responses
+ */
+function buildIterationContext(
+  previousEvaluation: Verdict,
+  userResponses?: ActionItemResponse[],
+): string {
+  const decisionLabels: Record<string, string> = {
+    STRONG_SIGNAL: "Strong Signal",
+    CONDITIONAL_FIT: "Conditional Fit",
+    WEAK_SIGNAL: "Weak Signal",
+    NO_MARKET_FIT: "No Market Fit",
+  };
+
+  let context = `
+## Previous Evaluation Context (Version ${previousEvaluation.version})
+
+**Previous Result:** ${decisionLabels[previousEvaluation.decision]} (${previousEvaluation.confidence}/10)
+
+**Previous Summary:** ${previousEvaluation.executiveSummary}
+
+### Key Concerns from Previous Evaluation:
+`;
+
+  // Add action items with user responses if available
+  if (previousEvaluation.actionItems && previousEvaluation.actionItems.length > 0) {
+    for (const item of previousEvaluation.actionItems) {
+      const response = userResponses?.find((r) => r.actionItemId === item.id);
+      context += `\n**${item.severity.toUpperCase()}:** ${item.concern}`;
+      if (response) {
+        context += `\n→ *User's response:* ${response.response}`;
+      }
+      context += "\n";
+    }
+  } else {
+    // Fall back to key risks if no action items
+    for (const risk of previousEvaluation.keyRisks.slice(0, 3)) {
+      context += `- ${risk}\n`;
+    }
+  }
+
+  context += `
+---
+
+**Instructions:** This is Version ${previousEvaluation.version + 1} of this evaluation. 
+The founder has refined their pitch based on previous feedback.
+- Evaluate the new version on its own merits
+- Note specific improvements from the previous version
+- Identify any new concerns that emerged
+- Be fair but thorough — iteration should show real progress
+`;
+
+  return context.trim();
+}
+
 export async function evaluateIdea(
   input: IdeaInput,
   options: EvaluationOptions = {},
@@ -126,7 +193,19 @@ export async function evaluateIdea(
   const id = crypto.randomUUID();
   let ideaText = formatIdeaForAgents(input);
 
-  console.log(`\n🌱 [Prebloom] Starting evaluation ${id}\n`);
+  // Determine version number based on previous evaluation
+  const version = options.previousEvaluation ? options.previousEvaluation.version + 1 : 1;
+  const previousId = options.previousEvaluation?.id;
+
+  // Build iteration context if this is a re-evaluation
+  let iterationContext = "";
+  if (options.previousEvaluation) {
+    iterationContext = buildIterationContext(options.previousEvaluation, options.userResponses);
+    console.log(`\n🔄 [Prebloom] Starting iteration ${version} (previous: ${previousId})\n`);
+  } else {
+    console.log(`\n🌱 [Prebloom] Starting evaluation ${id}\n`);
+  }
+
   const totalStarted = Date.now();
 
   // Initialize skills registry
@@ -149,29 +228,62 @@ export async function evaluateIdea(
     }
   }
 
-  // Phase 1: Intake
+  // Phase 1: Intake (include iteration context if present)
+  const intakeMessage = iterationContext ? `${iterationContext}\n\n---\n\n${ideaText}` : ideaText;
+
   let intake = await runAgent({
     name: "Intake",
     systemPrompt: INTAKE_SYSTEM_PROMPT,
-    userMessage: ideaText,
+    userMessage: intakeMessage,
   });
 
-  // Phase 2: Catalyst and Fire run in parallel
+  // Phase 2: Catalyst and Fire run in parallel (include iteration context)
+  const catalystMessage = iterationContext
+    ? `${iterationContext}\n\n---\n\n${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`
+    : `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`;
+
+  const fireMessage = iterationContext
+    ? `${iterationContext}\n\n---\n\n${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`
+    : `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`;
+
   let [catalyst, fire] = await Promise.all([
     runAgent({
       name: "Catalyst",
       systemPrompt: CATALYST_SYSTEM_PROMPT,
-      userMessage: `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`,
+      userMessage: catalystMessage,
     }),
     runAgent({
       name: "Fire",
       systemPrompt: FIRE_SYSTEM_PROMPT,
-      userMessage: `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`,
+      userMessage: fireMessage,
     }),
   ]);
 
-  // Phase 3: Synthesis
-  const synthesisInput = `
+  // Phase 3: Synthesis (include iteration context)
+  const synthesisInput = iterationContext
+    ? `
+${iterationContext}
+
+---
+
+${ideaText}
+
+---
+
+## Intake Analysis
+${intake.analysis}
+
+---
+
+## Catalyst Squad (The Believers)
+${catalyst.analysis}
+
+---
+
+## Fire Squad (The Skeptics)
+${fire.analysis}
+`.trim()
+    : `
 ${ideaText}
 
 ---
@@ -233,9 +345,18 @@ ${fire.analysis}
   // Parse synthesis output for structured verdict
   const parsedVerdict = parseSynthesisOutput(synthesis.analysis);
 
+  // Extract action items for potential iteration
+  const actionItems = extractActionItems({
+    synthesis,
+    fire,
+    dimensions: parsedVerdict.dimensions,
+    keyRisks: parsedVerdict.keyRisks,
+    killConditions: parsedVerdict.killConditions,
+  });
+
   const totalElapsed = Date.now() - totalStarted;
   console.log(
-    `\n✨ [Prebloom] Evaluation complete: ${parsedVerdict.decision} (${parsedVerdict.confidence}/10) in ${totalElapsed}ms\n`,
+    `\n✨ [Prebloom] Evaluation complete (V${version}): ${parsedVerdict.decision} (${parsedVerdict.confidence}/10) in ${totalElapsed}ms\n`,
   );
 
   return {
@@ -247,6 +368,11 @@ ${fire.analysis}
     fire,
     synthesis,
     ...parsedVerdict,
+    // Iteration tracking
+    version,
+    previousId,
+    actionItems,
+    userResponses: options.userResponses,
   };
 }
 

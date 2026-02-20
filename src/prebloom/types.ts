@@ -29,6 +29,22 @@ export interface DimensionScores {
   businessModel: number; // 1-10: Revenue model clarity & viability
 }
 
+// Action item extracted from evaluation for iteration
+export interface ActionItem {
+  id: string;
+  concern: string; // The weakness/risk to address
+  category: "market" | "product" | "execution" | "business" | "timing";
+  severity: "critical" | "major" | "minor";
+  source: "synthesis" | "fire" | "dimension"; // Where this was identified
+  addressed?: boolean; // Updated after re-evaluation
+}
+
+// User response to an action item during iteration
+export interface ActionItemResponse {
+  actionItemId: string;
+  response: string;
+}
+
 // Market Fit Scan result structure
 export interface Verdict {
   id: string;
@@ -53,6 +69,12 @@ export interface Verdict {
   keyRisks: string[];
   nextSteps: string[];
   killConditions: string[];
+
+  // Iteration tracking
+  version: number; // 1, 2, 3...
+  previousId?: string; // Link to previous version
+  actionItems?: ActionItem[]; // Extracted concerns for next iteration
+  userResponses?: ActionItemResponse[]; // What user submitted for this iteration
 }
 
 // Evaluation job status
@@ -65,3 +87,24 @@ export interface EvaluationJob {
   createdAt: string;
   completedAt?: string;
 }
+
+// Iteration request schema
+export const iterationRequestSchema = z.object({
+  responses: z.array(
+    z.object({
+      actionItemId: z.string(),
+      response: z.string().min(10, "Response must be at least 10 characters"),
+    }),
+  ),
+  updatedPitch: z
+    .object({
+      problem: z.string().optional(),
+      solution: z.string().optional(),
+      targetMarket: z.string().optional(),
+      businessModel: z.string().optional(),
+      whyYou: z.string().optional(),
+    })
+    .optional(),
+});
+
+export type IterationRequest = z.infer<typeof iterationRequestSchema>;

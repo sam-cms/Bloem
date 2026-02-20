@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import AudioVisualizer from './components/AudioVisualizer'
 import { AgentCouncilLoader } from './components/AgentCouncilLoader'
+import { IterateModal } from './components/IterateModal'
 
 type DimensionScores = {
   problemClarity: number
@@ -11,7 +12,17 @@ type DimensionScores = {
   businessModel: number
 }
 
+type ActionItem = {
+  id: string
+  concern: string
+  category: 'market' | 'product' | 'execution' | 'business' | 'timing'
+  severity: 'critical' | 'major' | 'minor'
+  source: 'synthesis' | 'fire' | 'dimension'
+  addressed?: boolean
+}
+
 type Verdict = {
+  id?: string
   decision: 'STRONG_SIGNAL' | 'CONDITIONAL_FIT' | 'WEAK_SIGNAL' | 'NO_MARKET_FIT'
   confidence: number
   dimensions: DimensionScores
@@ -23,6 +34,10 @@ type Verdict = {
   catalyst: { analysis: string; score?: number }
   fire: { analysis: string; score?: number }
   synthesis: { analysis: string; score?: number }
+  // Iteration fields
+  version?: number
+  previousId?: string
+  actionItems?: ActionItem[]
 }
 
 // Dimension display config
@@ -48,6 +63,8 @@ export default function App() {
   const [currentPhase, setCurrentPhase] = useState<string>('intake')
   const [reportView, setReportView] = useState<ReportView>('full')
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null)
+  const [showIterateModal, setShowIterateModal] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -166,6 +183,7 @@ export default function App() {
           setCurrentPhase('synthesis')
           await new Promise(r => setTimeout(r, 1000))
           setVerdict(pollData.verdict)
+          setCurrentJobId(jobId)
           setState('report')
           return
         }
@@ -187,6 +205,75 @@ export default function App() {
     setVerdict(null)
     setError(null)
     setReportView('tldr')
+    setCurrentJobId(null)
+    setShowIterateModal(false)
+  }
+
+  const handleIterate = async (responses: { actionItemId: string; response: string }[]) => {
+    if (!currentJobId) return
+
+    setShowIterateModal(false)
+    setState('processing')
+    setError(null)
+    setCurrentPhase('intake')
+
+    try {
+      const submitRes = await fetch(`${API_BASE}/prebloom/iterate/${currentJobId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responses }),
+      })
+
+      if (!submitRes.ok) {
+        const errorData = await submitRes.json()
+        throw new Error(errorData.error || errorData.message || 'Failed to start iteration')
+      }
+
+      const { jobId } = await submitRes.json()
+
+      // Same polling logic as initial evaluation
+      const phases = ['intake', 'squads', 'synthesis'] as const
+      const phaseTiming = { intake: 5000, squads: 10000, synthesis: 0 }
+      
+      let currentPhaseIdx = 0
+      let phaseStartTime = Date.now()
+      let attempts = 0
+
+      setCurrentPhase('intake')
+
+      while (attempts < 120) {
+        await new Promise(r => setTimeout(r, 2000))
+
+        const currentPhaseName = phases[currentPhaseIdx]
+        const elapsed = Date.now() - phaseStartTime
+        
+        if (currentPhaseIdx < phases.length - 1 && elapsed >= phaseTiming[currentPhaseName]) {
+          currentPhaseIdx++
+          phaseStartTime = Date.now()
+          setCurrentPhase(phases[currentPhaseIdx])
+        }
+
+        const pollRes = await fetch(`${API_BASE}/prebloom/evaluate/${jobId}`)
+        const pollData = await pollRes.json()
+
+        if (pollData.status === 'completed') {
+          setCurrentPhase('synthesis')
+          await new Promise(r => setTimeout(r, 1000))
+          setVerdict(pollData.verdict)
+          setCurrentJobId(jobId)
+          setState('report')
+          return
+        }
+        if (pollData.status === 'failed') {
+          throw new Error(pollData.error || 'Iteration failed')
+        }
+        attempts++
+      }
+      throw new Error('Timed out')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setState('report') // Go back to report on error
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -313,13 +400,24 @@ export default function App() {
 
   if (state === 'report' && verdict) {
     return (
-      <ReportContainer 
-        verdict={verdict} 
-        idea={idea} 
-        onReset={handleReset}
-        view={reportView}
-        onViewChange={setReportView}
-      />
+      <>
+        <ReportContainer 
+          verdict={verdict} 
+          idea={idea} 
+          onReset={handleReset}
+          view={reportView}
+          onViewChange={setReportView}
+          onIterate={() => setShowIterateModal(true)}
+          canIterate={(verdict.version || 1) < 3}
+        />
+        {showIterateModal && (
+          <IterateModal
+            verdict={verdict}
+            onSubmit={handleIterate}
+            onClose={() => setShowIterateModal(false)}
+          />
+        )}
+      </>
     )
   }
 
@@ -529,13 +627,19 @@ function ReportContainer({
   onReset,
   view,
   onViewChange,
+  onIterate,
+  canIterate,
 }: { 
   verdict: Verdict
   idea: string
   onReset: () => void
   view: ReportView
   onViewChange: (view: ReportView) => void
+  onIterate: () => void
+  canIterate: boolean
 }) {
+  const version = verdict.version || 1
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Top Bar */}
@@ -544,6 +648,11 @@ function ReportContainer({
           <div className="flex items-center gap-2">
             <img src="/prebloom-logo.jpg" alt="Prebloom" className="w-6 h-6 object-contain" />
             <span className="label">Prebloom</span>
+            {version > 1 && (
+              <span className="ml-2 px-2 py-0.5 text-[10px] font-mono bg-[var(--accent)]/10 text-[var(--accent)] rounded">
+                V{version}
+              </span>
+            )}
           </div>
 
           {/* View Toggle */}
@@ -580,9 +689,24 @@ function ReportContainer({
             </button>
           </div>
 
-          <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
-            ← New Analysis
-          </button>
+          <div className="flex items-center gap-3">
+            {canIterate && verdict.actionItems && verdict.actionItems.length > 0 && (
+              <button 
+                onClick={onIterate} 
+                className="px-4 py-2 text-xs font-medium tracking-wide uppercase bg-[var(--accent)] text-black hover:bg-[var(--accent)]/80 transition-colors"
+              >
+                Refine & Re-evaluate ({version}/3)
+              </button>
+            )}
+            {!canIterate && (
+              <span className="text-[10px] text-[var(--fg-subtle)] font-mono">
+                3/3 iterations used
+              </span>
+            )}
+            <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
+              ← New Analysis
+            </button>
+          </div>
         </div>
       </header>
 

@@ -3,5 +3,13 @@
 
 export { evaluateIdea } from "./swarm/index.js";
 export { handlePrebloomHttpRequest } from "./api/index.js";
-export type { IdeaInput, Verdict, EvaluationJob, AgentOutput } from "./types.js";
-export { ideaInputSchema } from "./types.js";
+export type {
+  IdeaInput,
+  Verdict,
+  EvaluationJob,
+  AgentOutput,
+  ActionItem,
+  ActionItemResponse,
+  IterationRequest,
+} from "./types.js";
+export { ideaInputSchema, iterationRequestSchema } from "./types.js";
