@@ -161,3 +161,40 @@
 - Publish: `npm publish --access public --otp="<otp>"` (run from the package dir).
 - Verify without local npmrc side effects: `npm view <pkg> version --userconfig "$(mktemp)"`.
 - Kill the tmux session after publish.
+
+## Prebloom — Production Rules
+
+Prebloom ships to production within a week. Dev is for fast iteration, not throwaway code. Everything we build goes live.
+
+### Infrastructure Assumptions
+- **Database:** Use managed PostgreSQL (Supabase, Neon, Railway) — NOT SQLite. SQLite is for local dev only.
+- **Storage:** Assume ephemeral containers. No local filesystem persistence. Use object storage (S3, R2) for files.
+- **Secrets:** Environment variables only. No hardcoded keys. Use `.env.example` for documentation.
+- **Deployment:** Docker containers on Railway, Fly.io, or similar. Assume horizontal scaling (multiple instances).
+
+### Design for Production
+- **Stateless:** No in-memory state that can't be lost. Sessions, jobs, history → database.
+- **Idempotent:** Operations should be safe to retry. Use unique job IDs.
+- **Observable:** Structured logging. Health check endpoints. Error tracking ready.
+- **Graceful:** Handle partial failures. If email fails, evaluation still completes.
+
+### Before Proposing Solutions
+1. Ask: "Does this work with multiple container instances?"
+2. Ask: "Does this survive container restart?"
+3. Ask: "Does this work without local filesystem access?"
+4. If any answer is NO → find a cloud-native alternative.
+
+### Tech Stack (Prebloom)
+- **Frontend:** React + Vite + Tailwind (static, deploy to CDN/Vercel)
+- **Backend:** Node.js + Express (containerized)
+- **Database:** Supabase (PostgreSQL with JSONB for flexible verdict storage)
+- **Email:** Resend or SendGrid (managed, no self-hosted SMTP)
+- **Auth:** Supabase Auth (magic links + OAuth)
+
+### Trello Discipline
+- **Before updating a card:** Read the current card content first
+- **Card names:** Clear, specific, reflect actual tech decisions (e.g., "Supabase" not "PostgreSQL" when Supabase is chosen)
+- **Card descriptions:** Keep simple — plain language, task checkboxes, acceptance criteria. NO code, NO schemas, NO credentials in cards.
+- **Security:** Trello is visible to team. Never put secrets, API keys, or sensitive implementation details in cards.
+- **When starting work:** Move card to In Progress, verify details are accurate
+- **When finishing:** Move to Done, add completion notes if relevant

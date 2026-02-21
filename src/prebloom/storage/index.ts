@@ -1,16 +1,12 @@
 /**
  * Prebloom Storage Module
- * Exports SQLite-based persistent storage for evaluations
+ *
+ * Uses Supabase for production, in-memory for local dev without Supabase.
+ * Exports unified interface via adapter.
  */
 
-export {
-  initDatabase,
-  closeDatabase,
-  createEvaluation,
-  getEvaluation,
-  updateEvaluationStatus,
-  listEvaluations,
-  deleteEvaluation,
-  getStats,
-  type StoredEvaluation,
-} from "./sqlite.js";
+// Re-export adapter functions (handles Supabase vs in-memory automatically)
+export * from "./adapter.js";
+
+// Also export raw Supabase functions for direct use if needed
+export * as supabase from "./supabase.js";

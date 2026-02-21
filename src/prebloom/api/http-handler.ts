@@ -15,12 +15,46 @@ import { transcribeAudio, checkWhisperHealth } from "../audio/transcribe.js";
 import { runMarketResearch } from "../groundwork/market-research.js";
 import { runDeepResearch } from "../groundwork/deep-research.js";
 import type { MarketResearchResult } from "../groundwork/types.js";
+import * as storage from "../storage/adapter.js";
 
 // Maximum iterations allowed
 const MAX_ITERATIONS = 3;
 
-// In-memory job store (replace with persistent storage in production)
-const jobs = new Map<string, EvaluationJob>();
+/**
+ * Reconstruct a Verdict-like object from flattened evaluation data
+ * Used for iteration context in the orchestrator
+ */
+function buildVerdictFromEvaluation(
+  evaluation: NonNullable<Awaited<ReturnType<typeof storage.getEvaluation>>>,
+): Verdict {
+  return {
+    id: evaluation.id,
+    createdAt: evaluation.createdAt,
+    input: (evaluation.inputData as any) || {},
+    intake: { agent: "intake", analysis: evaluation.agentIntake || "" },
+    catalyst: { agent: "catalyst", analysis: evaluation.agentCatalyst || "" },
+    fire: { agent: "fire", analysis: evaluation.agentFire || "" },
+    synthesis: { agent: "synthesis", analysis: evaluation.agentSynthesis || "" },
+    decision: (evaluation.decision || "WEAK_SIGNAL") as Verdict["decision"],
+    confidence: evaluation.confidence || 0,
+    dimensions: {
+      problemClarity: 0,
+      marketSize: 0,
+      competitionRisk: 0,
+      execution: 0,
+      businessModel: 0,
+    },
+    executiveSummary: evaluation.executiveSummary || "",
+    keyStrengths: evaluation.keyStrengths || [],
+    keyRisks: evaluation.keyRisks || [],
+    nextSteps: evaluation.nextSteps || [],
+    killConditions: evaluation.killConditions || [],
+    version: evaluation.version,
+    actionItems: evaluation.actionItems || [],
+  };
+}
+
+// Research jobs stay in-memory (separate concern, short-lived)
 const researchJobs = new Map<
   string,
   {
@@ -125,10 +159,13 @@ export async function handlePrebloomHttpRequest(
   // Health check (no auth required for now)
   if (url.pathname === "/prebloom/health" && req.method === "GET") {
     const whisperHealthy = await checkWhisperHealth();
+    const stats = await storage.getStats();
     sendJson(res, 200, {
       service: "prebloom",
       status: "healthy",
-      jobsInMemory: jobs.size,
+      storage: stats.storageMode,
+      projects: stats.totalProjects,
+      evaluations: stats.totalEvaluations,
       whisper: whisperHealthy ? "available" : "unavailable",
     });
     return true;
@@ -209,7 +246,6 @@ export async function handlePrebloomHttpRequest(
       }
 
       const input = parseResult.data;
-      const jobId = crypto.randomUUID();
 
       // Extract skill options from body
       const rawBody = body as Record<string, unknown>;
@@ -221,33 +257,45 @@ export async function handlePrebloomHttpRequest(
           : undefined,
       };
 
-      // Create job record
-      const job: EvaluationJob = {
-        id: jobId,
-        status: "pending",
-        input,
-        createdAt: new Date().toISOString(),
-      };
-      jobs.set(jobId, job);
+      // Build raw idea text from structured input
+      const rawIdea = `Problem: ${input.problem}\nSolution: ${input.solution}\nTarget Market: ${input.targetMarket}\nBusiness Model: ${input.businessModel}${input.whyYou ? `\nWhy You: ${input.whyYou}` : ""}`;
+
+      // Create project and first evaluation in storage
+      const { projectId, evaluationId } = await storage.createProjectWithEvaluation({
+        email: input.email,
+        rawIdea,
+        summary: input.problem.slice(0, 100), // Use problem as initial summary
+      });
+
+      // Mark as processing
+      await storage.updateEvaluation(evaluationId, { status: "processing" });
 
       // Start evaluation async
-      job.status = "processing";
-
       evaluateIdea(input, options)
-        .then((verdict) => {
-          job.status = "completed";
-          job.verdict = verdict;
-          job.completedAt = new Date().toISOString();
+        .then(async (verdict) => {
+          await storage.updateEvaluation(evaluationId, {
+            status: "completed",
+            verdict,
+          });
+          // Update project overview with latest verdict info
+          await storage.updateProjectOverview(projectId, {
+            decision: verdict.decision,
+            confidence: verdict.confidence,
+            version: verdict.version,
+            summary: verdict.executiveSummary?.slice(0, 200),
+          });
         })
-        .catch((error) => {
-          job.status = "failed";
-          job.error = error.message;
-          job.completedAt = new Date().toISOString();
+        .catch(async (error) => {
+          await storage.updateEvaluation(evaluationId, {
+            status: "failed",
+            error: error.message,
+          });
         });
 
-      // Return job ID immediately (async processing)
+      // Return evaluation ID immediately (async processing)
       sendJson(res, 202, {
-        jobId,
+        jobId: evaluationId,
+        projectId,
         status: "processing",
         message: "Evaluation started. Poll /prebloom/evaluate/:id for results.",
       });
@@ -261,32 +309,47 @@ export async function handlePrebloomHttpRequest(
   // GET /prebloom/evaluate/:id — Get result
   const evaluateMatch = url.pathname.match(/^\/prebloom\/evaluate\/([a-f0-9-]+)$/);
   if (evaluateMatch && req.method === "GET") {
-    const jobId = evaluateMatch[1];
-    const job = jobs.get(jobId);
+    const evaluationId = evaluateMatch[1];
+    const evaluation = await storage.getEvaluation(evaluationId);
 
-    if (!job) {
-      sendError(res, 404, "Job not found");
+    if (!evaluation) {
+      sendError(res, 404, "Evaluation not found");
       return true;
     }
 
-    if (job.status === "completed") {
+    if (evaluation.status === "completed") {
       sendJson(res, 200, {
         status: "completed",
-        verdict: job.verdict,
+        verdict: {
+          decision: evaluation.decision,
+          confidence: evaluation.confidence,
+          executiveSummary: evaluation.executiveSummary,
+          keyStrengths: evaluation.keyStrengths,
+          keyRisks: evaluation.keyRisks,
+          nextSteps: evaluation.nextSteps,
+          killConditions: evaluation.killConditions,
+          actionItems: evaluation.actionItems,
+          intake: { analysis: evaluation.agentIntake },
+          catalyst: { analysis: evaluation.agentCatalyst },
+          fire: { analysis: evaluation.agentFire },
+          synthesis: { analysis: evaluation.agentSynthesis },
+        },
+        projectId: evaluation.projectId,
+        version: evaluation.version,
       });
       return true;
     }
 
-    if (job.status === "failed") {
+    if (evaluation.status === "failed") {
       sendJson(res, 200, {
         status: "failed",
-        error: job.error,
+        error: evaluation.error,
       });
       return true;
     }
 
     sendJson(res, 200, {
-      status: job.status,
+      status: evaluation.status,
       message: "Evaluation in progress...",
     });
     return true;
@@ -295,28 +358,29 @@ export async function handlePrebloomHttpRequest(
   // POST /prebloom/iterate/:id — Submit iteration based on previous evaluation
   const iterateMatch = url.pathname.match(/^\/prebloom\/iterate\/([a-f0-9-]+)$/);
   if (iterateMatch && req.method === "POST") {
-    const previousJobId = iterateMatch[1];
-    const previousJob = jobs.get(previousJobId);
+    const previousEvaluationId = iterateMatch[1];
+    const previousEvaluation = await storage.getEvaluation(previousEvaluationId);
 
-    // Check previous job exists and is completed
-    if (!previousJob) {
+    // Check previous evaluation exists and is completed
+    if (!previousEvaluation) {
       sendError(res, 404, "Previous evaluation not found");
       return true;
     }
 
-    if (previousJob.status !== "completed" || !previousJob.verdict) {
+    if (previousEvaluation.status !== "completed" || !previousEvaluation.decision) {
       sendError(res, 400, "Previous evaluation must be completed before iterating");
       return true;
     }
 
-    const previousVerdict = previousJob.verdict;
+    // Build full Verdict object from flattened columns (for orchestrator)
+    const previousVerdict = buildVerdictFromEvaluation(previousEvaluation);
 
     // Check iteration limit
-    if (previousVerdict.version >= MAX_ITERATIONS) {
+    if (previousEvaluation.version >= MAX_ITERATIONS) {
       sendJson(res, 400, {
         error: "Iteration limit reached",
         message: `You've refined this idea ${MAX_ITERATIONS} times. Consider proceeding with the current assessment, starting fresh with a new idea, or pivoting to a related concept.`,
-        version: previousVerdict.version,
+        version: previousEvaluation.version,
         maxIterations: MAX_ITERATIONS,
       });
       return true;
@@ -336,12 +400,19 @@ export async function handlePrebloomHttpRequest(
       }
 
       const iterationRequest = parseResult.data;
-      const jobId = crypto.randomUUID();
 
-      // Build updated input (merge original with any updates)
+      // For iterations, we use the previous evaluation's input as base
+      // and merge any updates the user provided
+      const previousInput = previousEvaluation.inputData || {};
       const updatedInput = {
-        ...previousJob.input,
-        ...iterationRequest.updatedPitch,
+        problem: iterationRequest.updatedPitch?.problem || previousInput.problem || "",
+        solution: iterationRequest.updatedPitch?.solution || previousInput.solution || "",
+        targetMarket:
+          iterationRequest.updatedPitch?.targetMarket || previousInput.targetMarket || "",
+        businessModel:
+          iterationRequest.updatedPitch?.businessModel || previousInput.businessModel || "",
+        whyYou: iterationRequest.updatedPitch?.whyYou || previousInput.whyYou || "",
+        email: previousInput.email || "",
       };
 
       // Validate merged input
@@ -354,14 +425,27 @@ export async function handlePrebloomHttpRequest(
         return true;
       }
 
-      // Create job record
-      const job: EvaluationJob = {
-        id: jobId,
-        status: "processing",
-        input: inputValidation.data,
-        createdAt: new Date().toISOString(),
-      };
-      jobs.set(jobId, job);
+      // Build raw idea text from updated input
+      const validated = inputValidation.data;
+      const rawIdea = `Problem: ${validated.problem}\nSolution: ${validated.solution}\nTarget Market: ${validated.targetMarket}\nBusiness Model: ${validated.businessModel}${validated.whyYou ? `\nWhy You: ${validated.whyYou}` : ""}`;
+
+      // Convert responses array to Record<string, string> for storage
+      const userResponsesRecord: Record<string, string> = {};
+      for (const r of iterationRequest.responses) {
+        userResponsesRecord[r.actionItemId] = r.response;
+      }
+
+      // Create new iteration in storage
+      const { evaluationId, version } = await storage.createIteration(
+        previousEvaluation.projectId,
+        {
+          rawIdea,
+          userResponses: userResponsesRecord,
+        },
+      );
+
+      // Mark as processing
+      await storage.updateEvaluation(evaluationId, { status: "processing" });
 
       // Build evaluation options with iteration context
       const options: EvaluationOptions = {
@@ -371,24 +455,34 @@ export async function handlePrebloomHttpRequest(
 
       // Start evaluation async
       evaluateIdea(inputValidation.data, options)
-        .then((verdict) => {
-          job.status = "completed";
-          job.verdict = verdict;
-          job.completedAt = new Date().toISOString();
+        .then(async (verdict) => {
+          await storage.updateEvaluation(evaluationId, {
+            status: "completed",
+            verdict,
+          });
+          // Update project overview with latest verdict info
+          await storage.updateProjectOverview(previousEvaluation.projectId, {
+            decision: verdict.decision,
+            confidence: verdict.confidence,
+            version: verdict.version,
+            summary: verdict.executiveSummary?.slice(0, 200),
+          });
         })
-        .catch((error) => {
-          job.status = "failed";
-          job.error = error.message;
-          job.completedAt = new Date().toISOString();
+        .catch(async (error) => {
+          await storage.updateEvaluation(evaluationId, {
+            status: "failed",
+            error: error.message,
+          });
         });
 
-      // Return job ID immediately
+      // Return evaluation ID immediately
       sendJson(res, 202, {
-        jobId,
+        jobId: evaluationId,
+        projectId: previousEvaluation.projectId,
         status: "processing",
-        version: previousVerdict.version + 1,
-        previousId: previousJobId,
-        message: `Iteration ${previousVerdict.version + 1} started. Poll /prebloom/evaluate/${jobId} for results.`,
+        version,
+        previousId: previousEvaluationId,
+        message: `Iteration ${version} started. Poll /prebloom/evaluate/${evaluationId} for results.`,
       });
       return true;
     } catch (error) {
@@ -397,44 +491,33 @@ export async function handlePrebloomHttpRequest(
     }
   }
 
-  // GET /prebloom/history/:id — Get full version chain for an evaluation
+  // GET /prebloom/history/:id — Get full version chain for a project
+  // Accepts either evaluationId or projectId
   const historyMatch = url.pathname.match(/^\/prebloom\/history\/([a-f0-9-]+)$/);
   if (historyMatch && req.method === "GET") {
-    const jobId = historyMatch[1];
-    const job = jobs.get(jobId);
+    const id = historyMatch[1];
 
-    if (!job || !job.verdict) {
-      sendError(res, 404, "Evaluation not found");
+    // Try to get evaluation first to find projectId
+    const evaluation = await storage.getEvaluation(id);
+    const projectId = evaluation?.projectId || id;
+
+    // Get all versions for this project
+    const versions = await storage.getProjectHistory(projectId);
+
+    if (versions.length === 0) {
+      sendError(res, 404, "Project not found");
       return true;
     }
 
-    // Build version chain by walking backwards
-    const versions: { id: string; version: number; decision: string; confidence: number }[] = [];
-    let current: EvaluationJob | undefined = job;
-
-    while (current && current.verdict) {
-      versions.unshift({
-        id: current.id,
-        version: current.verdict.version,
-        decision: current.verdict.decision,
-        confidence: current.verdict.confidence,
-      });
-
-      // Find previous version if exists
-      if (current.verdict.previousId) {
-        current = jobs.get(current.verdict.previousId);
-      } else {
-        break;
-      }
-    }
+    // Find the latest version
+    const latestVersion = versions[versions.length - 1];
 
     sendJson(res, 200, {
-      currentId: jobId,
-      currentVersion: job.verdict.version,
+      projectId,
+      currentVersion: latestVersion.version,
       maxIterations: MAX_ITERATIONS,
-      canIterate: job.verdict.version < MAX_ITERATIONS,
+      canIterate: latestVersion.version < MAX_ITERATIONS,
       versions,
-      actionItems: job.verdict.actionItems,
     });
     return true;
   }

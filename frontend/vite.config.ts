@@ -9,7 +9,7 @@ export default defineConfig({
     allowedHosts: ['localhost-0.tailb786fe.ts.net', '.tailb786fe.ts.net'],
     proxy: {
       '/prebloom': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:3000',  // Dev backend
         changeOrigin: true,
       },
     },
