@@ -21,15 +21,18 @@ export interface Project {
 
 export interface Evaluation {
   id: string;
-  created_at: string;
   project_id: string;
+  email: string | null;
+  language: string | null;
+
+  // State
   version: number;
   status: "pending" | "processing" | "completed" | "failed";
+  created_at: string;
 
   // Input
+  idea_title: string | null;
   raw_idea: string | null;
-  language: string | null;
-  email: string | null;
   user_responses: Record<string, string> | null;
 
   // Verdict
@@ -252,6 +255,12 @@ export async function updateEvaluation(
     // Store structured input for iterations
     if (v.input) {
       updateData.input_data = v.input;
+
+      // Generate idea_title from problem statement (first 60 chars)
+      if (v.input.problem) {
+        updateData.idea_title =
+          v.input.problem.slice(0, 60).trim() + (v.input.problem.length > 60 ? "..." : "");
+      }
     }
   }
 

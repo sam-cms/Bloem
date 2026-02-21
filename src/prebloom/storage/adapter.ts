@@ -110,6 +110,7 @@ export async function getEvaluation(id: string): Promise<{
   projectId: string;
   version: number;
   status: "pending" | "processing" | "completed" | "failed";
+  ideaTitle: string | null;
   rawIdea: string | null;
   decision: string | null;
   confidence: number | null;
@@ -135,6 +136,7 @@ export async function getEvaluation(id: string): Promise<{
       projectId: result.project_id,
       version: result.version,
       status: result.status,
+      ideaTitle: result.idea_title,
       rawIdea: result.raw_idea,
       decision: result.decision,
       confidence: result.confidence,
@@ -163,6 +165,7 @@ export async function getEvaluation(id: string): Promise<{
     projectId: evaluation.project_id,
     version: evaluation.version,
     status: evaluation.status,
+    ideaTitle: evaluation.verdict?.input?.problem?.slice(0, 60) || null,
     rawIdea: evaluation.raw_idea,
     decision: evaluation.verdict?.decision || null,
     confidence: evaluation.verdict?.confidence || null,

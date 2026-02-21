@@ -7,7 +7,7 @@
 import { createServer } from 'node:http';
 import { handlePrebloomHttpRequest } from '../dist/prebloom/api/index.js';
 
-const PORT = process.env.PREBLOOM_PORT || 8080;
+const PORT = process.env.PREBLOOM_PORT || 4000;  // Dev: 4000, Docker: 8080
 
 const server = createServer(async (req, res) => {
   // CORS headers for dev
