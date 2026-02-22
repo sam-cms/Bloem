@@ -3,6 +3,9 @@ import ReactMarkdown from 'react-markdown'
 import AudioVisualizer from './components/AudioVisualizer'
 import { AgentCouncilLoader } from './components/AgentCouncilLoader'
 import { IterateModal } from './components/IterateModal'
+import { LoginModal, UserMenu } from './components/Auth'
+import { useAuth } from './contexts/AuthContext'
+import { postJson, getJson, authFetch } from './lib/api'
 
 type DimensionScores = {
   problemClarity: number
@@ -53,9 +56,8 @@ type AppState = 'landing' | 'input' | 'processing' | 'report'
 type ReportView = 'tldr' | 'full' | 'groundwork'
 type RecordingState = 'idle' | 'recording' | 'transcribing'
 
-const API_BASE = ''
-
 export default function App() {
+  const { user } = useAuth()
   const [state, setState] = useState<AppState>('landing')
   const [idea, setIdea] = useState('')
   const [verdict, setVerdict] = useState<Verdict | null>(null)
@@ -65,6 +67,8 @@ export default function App() {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [showIterateModal, setShowIterateModal] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [hasShownLoginPrompt, setHasShownLoginPrompt] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -137,17 +141,13 @@ export default function App() {
     setCurrentPhase('intake')
 
     try {
-      const submitRes = await fetch(`${API_BASE}/prebloom/evaluate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          problem: idea,
-          solution: idea,
-          targetMarket: 'Extracted from description',
-          businessModel: 'Extracted from description',
-          email: 'report@prebloom.ai',
-          rawIdea: idea,
-        }),
+      const submitRes = await postJson('/prebloom/evaluate', {
+        problem: idea,
+        solution: idea,
+        targetMarket: 'Extracted from description',
+        businessModel: 'Extracted from description',
+        email: 'report@prebloom.ai',
+        rawIdea: idea,
       })
 
       if (!submitRes.ok) throw new Error('Failed to submit')
@@ -176,7 +176,7 @@ export default function App() {
           setCurrentPhase(phases[currentPhaseIdx])
         }
 
-        const pollRes = await fetch(`${API_BASE}/prebloom/evaluate/${jobId}`)
+        const pollRes = await getJson(`/prebloom/evaluate/${jobId}`)
         const pollData = await pollRes.json()
 
         if (pollData.status === 'completed') {
@@ -185,6 +185,13 @@ export default function App() {
           setVerdict(pollData.verdict)
           setCurrentJobId(jobId)
           setState('report')
+          // Show login modal for anonymous users (post-value auth)
+          if (!user && !hasShownLoginPrompt) {
+            setTimeout(() => {
+              setShowLoginModal(true)
+              setHasShownLoginPrompt(true)
+            }, 2000) // Delay to let user see the report first
+          }
           return
         }
         if (pollData.status === 'failed') {
@@ -218,11 +225,7 @@ export default function App() {
     setCurrentPhase('intake')
 
     try {
-      const submitRes = await fetch(`${API_BASE}/prebloom/iterate/${currentJobId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ responses }),
-      })
+      const submitRes = await postJson(`/prebloom/iterate/${currentJobId}`, { responses })
 
       if (!submitRes.ok) {
         const errorData = await submitRes.json()
@@ -253,7 +256,7 @@ export default function App() {
           setCurrentPhase(phases[currentPhaseIdx])
         }
 
-        const pollRes = await fetch(`${API_BASE}/prebloom/evaluate/${jobId}`)
+        const pollRes = await getJson(`/prebloom/evaluate/${jobId}`)
         const pollData = await pollRes.json()
 
         if (pollData.status === 'completed') {
@@ -351,7 +354,7 @@ export default function App() {
         setRecordingState('transcribing')
 
         try {
-          const response = await fetch(`${API_BASE}/prebloom/transcribe`, {
+          const response = await authFetch('/prebloom/transcribe', {
             method: 'POST',
             headers: { 'Content-Type': 'audio/webm' },
             body: audioBlob,
@@ -409,6 +412,8 @@ export default function App() {
           onViewChange={setReportView}
           onIterate={() => setShowIterateModal(true)}
           canIterate={(verdict.version || 1) < 3}
+          onSignInClick={() => setShowLoginModal(true)}
+          isAuthenticated={!!user}
         />
         {showIterateModal && (
           <IterateModal
@@ -417,6 +422,10 @@ export default function App() {
             onClose={() => setShowIterateModal(false)}
           />
         )}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+        />
       </>
     )
   }
@@ -451,10 +460,13 @@ export default function App() {
             </a>
           </nav>
           
-          {/* Back to home */}
-          <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
-            ← Back
-          </a>
+          {/* User menu and back */}
+          <div className="flex items-center gap-4">
+            <a href="/" onClick={(e) => { e.preventDefault(); setState('landing'); }} className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
+              ← Back
+            </a>
+            <UserMenu onSignInClick={() => setShowLoginModal(true)} />
+          </div>
         </div>
       </header>
 
@@ -579,6 +591,12 @@ export default function App() {
           {state === 'processing' && <ProcessingView phase={currentPhase} />}
         </div>
       </main>
+      
+      {/* Login Modal for input/processing views */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </div>
   )
 }
@@ -629,6 +647,8 @@ function ReportContainer({
   onViewChange,
   onIterate,
   canIterate,
+  onSignInClick,
+  isAuthenticated,
 }: { 
   verdict: Verdict
   idea: string
@@ -637,6 +657,8 @@ function ReportContainer({
   onViewChange: (view: ReportView) => void
   onIterate: () => void
   canIterate: boolean
+  onSignInClick: () => void
+  isAuthenticated: boolean
 }) {
   const version = verdict.version || 1
 
@@ -703,9 +725,20 @@ function ReportContainer({
                 3/3 iterations used
               </span>
             )}
+            {/* Save prompt for anonymous users */}
+            {!isAuthenticated && (
+              <button 
+                onClick={onSignInClick}
+                className="px-4 py-2 text-xs font-medium tracking-wide uppercase border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex items-center gap-2"
+              >
+                <span>🌱</span>
+                <span>Save</span>
+              </button>
+            )}
             <button onClick={onReset} className="text-[var(--fg-subtle)] text-sm hover:text-white transition-colors">
               ← New Analysis
             </button>
+            <UserMenu onSignInClick={onSignInClick} />
           </div>
         </div>
       </header>

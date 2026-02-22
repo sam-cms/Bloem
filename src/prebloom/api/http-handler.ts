@@ -16,6 +16,7 @@ import { runMarketResearch } from "../groundwork/market-research.js";
 import { runDeepResearch } from "../groundwork/deep-research.js";
 import type { MarketResearchResult } from "../groundwork/types.js";
 import * as storage from "../storage/adapter.js";
+import { extractAuthContext, ensureUserProfile, type AuthContext } from "../auth/index.js";
 
 // Maximum iterations allowed
 const MAX_ITERATIONS = 3;
@@ -156,7 +157,15 @@ export async function handlePrebloomHttpRequest(
     return false;
   }
 
-  // Health check (no auth required for now)
+  // Extract auth context (optional - doesn't block requests)
+  const auth = await extractAuthContext(req);
+
+  // Ensure user profile exists for authenticated users
+  if (auth.isAuthenticated) {
+    await ensureUserProfile(auth);
+  }
+
+  // Health check (no auth required)
   if (url.pathname === "/prebloom/health" && req.method === "GET") {
     const whisperHealthy = await checkWhisperHealth();
     const stats = await storage.getStats();
@@ -181,6 +190,59 @@ export async function handlePrebloomHttpRequest(
     }));
     sendJson(res, 200, { skills });
     return true;
+  }
+
+  // GET /prebloom/me — Get current user info (requires auth)
+  if (url.pathname === "/prebloom/me" && req.method === "GET") {
+    if (!auth.isAuthenticated) {
+      sendJson(res, 200, {
+        authenticated: false,
+        user: null,
+      });
+      return true;
+    }
+
+    sendJson(res, 200, {
+      authenticated: true,
+      user: {
+        id: auth.userId,
+        email: auth.email,
+        name: auth.user?.user_metadata?.full_name || null,
+        avatarUrl: auth.user?.user_metadata?.avatar_url || null,
+      },
+    });
+    return true;
+  }
+
+  // GET /prebloom/my-projects — List user's projects (requires auth)
+  if (url.pathname === "/prebloom/my-projects" && req.method === "GET") {
+    if (!auth.isAuthenticated) {
+      sendError(res, 401, "Authentication required");
+      return true;
+    }
+
+    try {
+      const limit = parseInt(url.searchParams.get("limit") || "20", 10);
+      const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+
+      const result = await storage.listProjects({
+        userId: auth.userId!,
+        limit,
+        offset,
+      });
+
+      sendJson(res, 200, {
+        projects: result.projects,
+        total: result.total,
+        limit,
+        offset,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to list projects";
+      sendError(res, 500, message);
+      return true;
+    }
   }
 
   // POST /prebloom/transcribe — Transcribe audio to text
@@ -261,10 +323,12 @@ export async function handlePrebloomHttpRequest(
       const rawIdea = `Problem: ${input.problem}\nSolution: ${input.solution}\nTarget Market: ${input.targetMarket}\nBusiness Model: ${input.businessModel}${input.whyYou ? `\nWhy You: ${input.whyYou}` : ""}`;
 
       // Create project and first evaluation in storage
+      // Link to authenticated user if available
       const { projectId, evaluationId } = await storage.createProjectWithEvaluation({
-        email: input.email,
+        email: auth.email || input.email,
         rawIdea,
         summary: input.problem.slice(0, 100), // Use problem as initial summary
+        userId: auth.userId || undefined,
       });
 
       // Mark as processing
