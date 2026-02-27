@@ -124,6 +124,13 @@ export async function getEvaluation(id: string): Promise<{
   agentFire: string | null;
   agentSynthesis: string | null;
   actionItems: any[] | null;
+  dimensions: {
+    problemClarity: number;
+    marketSize: number;
+    competitionRisk: number;
+    execution: number;
+    businessModel: number;
+  } | null;
   inputData: Record<string, any> | null;
   error: string | null;
   createdAt: string;
@@ -150,6 +157,16 @@ export async function getEvaluation(id: string): Promise<{
       agentFire: result.agent_fire,
       agentSynthesis: result.agent_synthesis,
       actionItems: result.action_items,
+      dimensions:
+        result.score_problem_clarity != null
+          ? {
+              problemClarity: result.score_problem_clarity || 5,
+              marketSize: result.score_market_size || 5,
+              competitionRisk: result.score_competition_risk || 5,
+              execution: result.score_execution || 5,
+              businessModel: result.score_business_model || 5,
+            }
+          : null,
       inputData: result.input_data,
       error: result.error || null,
       createdAt: result.created_at,
@@ -178,6 +195,7 @@ export async function getEvaluation(id: string): Promise<{
     agentCatalyst: evaluation.verdict?.catalyst?.analysis || null,
     agentFire: evaluation.verdict?.fire?.analysis || null,
     agentSynthesis: evaluation.verdict?.synthesis?.analysis || null,
+    dimensions: evaluation.verdict?.dimensions || null,
     actionItems: evaluation.verdict?.actionItems || null,
     inputData: evaluation.verdict?.input || null,
     error: evaluation.error,

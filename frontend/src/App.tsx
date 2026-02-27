@@ -186,7 +186,9 @@ export default function App() {
           setCurrentJobId(jobId)
           setState('report')
           // Show login modal for anonymous users (post-value auth)
-          if (!user && !hasShownLoginPrompt) {
+          // Skip in dev mode (?dev=1 or localhost)
+          const isDev = new URLSearchParams(window.location.search).has('dev') || window.location.hostname === 'localhost'
+          if (!isDev && !user && !hasShownLoginPrompt) {
             setTimeout(() => {
               setShowLoginModal(true)
               setHasShownLoginPrompt(true)

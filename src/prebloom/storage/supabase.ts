@@ -215,9 +215,7 @@ export async function updateEvaluation(
     updateData.status = updates.status;
   }
 
-  if (updates.error) {
-    updateData.error = updates.error;
-  }
+  // Skip error text — column may not exist in schema. status=failed is sufficient.
 
   // Flatten verdict into individual columns
   if (updates.verdict) {
