@@ -30,48 +30,101 @@ export interface EvaluationOptions {
 }
 
 // Default model for Prebloom evaluations
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+
+// Web search tool definition — agents use this when they need to verify
+// facts, check competitors, or find current data. Same capability as Bruce.
+const WEB_SEARCH_TOOL = {
+  type: "web_search_20260209" as const,
+  name: "web_search",
+};
 
 interface RunAgentOptions {
   name: string;
   systemPrompt: string;
   userMessage: string;
   model?: string;
+  /** Max web searches this agent can perform (0 = no search) */
+  maxSearches?: number;
 }
 
 interface AnthropicMessage {
   role: "user" | "assistant";
-  content: string;
+  content: string | Array<Record<string, unknown>>;
 }
 
 interface AnthropicResponse {
-  content: Array<{ type: string; text?: string }>;
+  content: Array<{
+    type: string;
+    text?: string;
+    name?: string;
+    id?: string;
+    input?: Record<string, unknown>;
+  }>;
+  stop_reason?: string;
+  usage?: { input_tokens: number; output_tokens: number };
 }
 
-async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
-  const { name, systemPrompt, userMessage, model = DEFAULT_MODEL } = options;
-
-  console.log(`🤖 [Prebloom] Running ${name} agent...`);
-  const started = Date.now();
-
-  // Get API key - prefer env var for standalone Docker deployment
+/**
+ * Resolve the Anthropic API key from environment or Bloem auth system.
+ */
+function getApiKey(): string {
+  // Prefer env var for standalone Docker deployment
   let apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
     // Fall back to Bloem's auth system
     const cfg = loadConfig();
-    const authResult = await resolveApiKeyForProvider({
-      cfg,
-      provider: "anthropic",
-    });
-    apiKey = authResult.apiKey;
-  }
-
-  if (!apiKey) {
+    // resolveApiKeyForProvider is async but we need sync here —
+    // caller should pre-resolve if needed
     throw new Error(`No API key found for anthropic. Set ANTHROPIC_API_KEY environment variable.`);
   }
 
-  // Call Anthropic API directly
+  return apiKey;
+}
+
+/**
+ * Run a Prebloom agent with optional web search capability.
+ *
+ * Agents autonomously decide when to search — just like Bruce.
+ * The web search tool is Claude's built-in server-side search.
+ * For Tier 1 agents, maxSearches is low (0-2) — safety net only.
+ * For Tier 2 agents (Groundwork), maxSearches is higher (8-10).
+ */
+async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
+  const { name, systemPrompt, userMessage, model = DEFAULT_MODEL, maxSearches = 0 } = options;
+
+  console.log(
+    `🤖 [Prebloom] Running ${name} agent${maxSearches > 0 ? ` (search enabled, max ${maxSearches})` : ""}...`,
+  );
+  const started = Date.now();
+
+  const apiKey = getApiKey();
+
+  // Build request body
+  const requestBody: Record<string, unknown> = {
+    model,
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: userMessage,
+      },
+    ],
+  };
+
+  // Add web search tool if agent has search capability
+  if (maxSearches > 0) {
+    requestBody.tools = [
+      {
+        ...WEB_SEARCH_TOOL,
+        max_uses: maxSearches,
+      },
+    ];
+  }
+
+  // Call Anthropic API
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -79,17 +132,7 @@ async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userMessage,
-        },
-      ] as AnthropicMessage[],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -100,9 +143,19 @@ async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
   const data = (await response.json()) as AnthropicResponse;
 
   const elapsed = Date.now() - started;
-  console.log(`✅ [Prebloom] ${name} agent complete (${elapsed}ms)`);
 
-  // Extract text from response
+  // Count searches performed
+  const searchCount = data.content.filter(
+    (block) => block.type === "server_tool_use" && block.name === "web_search",
+  ).length;
+
+  console.log(
+    `✅ [Prebloom] ${name} agent complete (${elapsed}ms)` +
+      (searchCount > 0 ? ` — ${searchCount} web search${searchCount > 1 ? "es" : ""}` : "") +
+      (data.usage ? ` — ${data.usage.input_tokens}in/${data.usage.output_tokens}out tokens` : ""),
+  );
+
+  // Extract text from response (skip tool use/result blocks)
   const text = data.content
     .filter((block) => block.type === "text")
     .map((block) => block.text ?? "")
@@ -229,83 +282,135 @@ export async function evaluateIdea(
   }
 
   // Phase 1: Intake (include iteration context if present)
-  const intakeMessage = iterationContext ? `${iterationContext}\n\n---\n\n${ideaText}` : ideaText;
+  // V2 format: XML-structured input, documents first, instructions last
+  const intakeMessage = iterationContext
+    ? `${iterationContext}\n\n---\n\n<idea_submission>\n${ideaText}\n</idea_submission>\n\nAnalyze this startup idea submission and produce your structured intake brief.`
+    : `<idea_submission>\n${ideaText}\n</idea_submission>\n\nAnalyze this startup idea submission and produce your structured intake brief.`;
 
   let intake = await runAgent({
     name: "Intake",
     systemPrompt: INTAKE_SYSTEM_PROMPT,
     userMessage: intakeMessage,
+    maxSearches: 2, // Tier 1: safety net search
   });
 
-  // Phase 2: Catalyst and Fire run in parallel (include iteration context)
-  const catalystMessage = iterationContext
-    ? `${iterationContext}\n\n---\n\n${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`
-    : `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`;
+  // Phase 2: Catalyst and Fire run in parallel
+  // V2 format: documents first (long context at top), instructions last
+  const catalystMessage = `<documents>
+<document index="1">
+<source>intake_brief</source>
+<document_content>
+${intake.analysis}
+</document_content>
+</document>
+<document index="2">
+<source>original_idea</source>
+<document_content>
+${ideaText}
+</document_content>
+</document>
+${
+  iterationContext
+    ? `<document index="3">
+<source>iteration_context</source>
+<document_content>
+${iterationContext}
+</document_content>
+</document>`
+    : ""
+}
+</documents>
 
-  const fireMessage = iterationContext
-    ? `${iterationContext}\n\n---\n\n${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`
-    : `${ideaText}\n\n---\n\n## Intake Analysis\n${intake.analysis}`;
+Apply your three lenses (Visionary, Hacker, Strategist) to this startup idea and produce your Catalyst Council analysis.`;
+
+  const fireMessage = `<documents>
+<document index="1">
+<source>intake_brief</source>
+<document_content>
+${intake.analysis}
+</document_content>
+</document>
+<document index="2">
+<source>original_idea</source>
+<document_content>
+${ideaText}
+</document_content>
+</document>
+${
+  iterationContext
+    ? `<document index="3">
+<source>iteration_context</source>
+<document_content>
+${iterationContext}
+</document_content>
+</document>`
+    : ""
+}
+</documents>
+
+Apply your three lenses (VC, Cynic, Real User) to this startup idea. Challenge assumptions and find the dangers.`;
 
   let [catalyst, fire] = await Promise.all([
     runAgent({
       name: "Catalyst",
       systemPrompt: CATALYST_SYSTEM_PROMPT,
       userMessage: catalystMessage,
+      maxSearches: 2, // Tier 1: safety net search
     }),
     runAgent({
       name: "Fire",
       systemPrompt: FIRE_SYSTEM_PROMPT,
       userMessage: fireMessage,
+      maxSearches: 2, // Tier 1: safety net search
     }),
   ]);
 
-  // Phase 3: Synthesis (include iteration context)
-  const synthesisInput = iterationContext
-    ? `
+  // Phase 3: Synthesis
+  // V2 format: all upstream data in documents, instruction last
+  const synthesisInput = `<documents>
+<document index="1">
+<source>intake_brief</source>
+<document_content>
+${intake.analysis}
+</document_content>
+</document>
+<document index="2">
+<source>catalyst_analysis</source>
+<document_content>
+${catalyst.analysis}
+</document_content>
+</document>
+<document index="3">
+<source>firing_squad_analysis</source>
+<document_content>
+${fire.analysis}
+</document_content>
+</document>
+<document index="4">
+<source>original_idea</source>
+<document_content>
+${ideaText}
+</document_content>
+</document>
+${
+  iterationContext
+    ? `<document index="5">
+<source>iteration_context</source>
+<document_content>
 ${iterationContext}
+</document_content>
+</document>`
+    : ""
+}
+</documents>
 
----
-
-${ideaText}
-
----
-
-## Intake Analysis
-${intake.analysis}
-
----
-
-## Catalyst Squad (The Believers)
-${catalyst.analysis}
-
----
-
-## Fire Squad (The Skeptics)
-${fire.analysis}
-`.trim()
-    : `
-${ideaText}
-
----
-
-## Intake Analysis
-${intake.analysis}
-
----
-
-## Catalyst Squad (The Believers)
-${catalyst.analysis}
-
----
-
-## Fire Squad (The Skeptics)
-${fire.analysis}
-`.trim();
+Weigh the Catalyst Council's case FOR and the Firing Squad's case AGAINST this startup idea. Deliver your Market Fit Scan verdict.`;
 
   let synthesis = await runAgent({
     name: "Synthesis",
     systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
     userMessage: synthesisInput,
+    maxSearches: 1, // Synthesis rarely needs search — reasoning over existing data
   });
 
   // Phase 4: Apply humanizer skill if enabled
@@ -378,18 +483,30 @@ ${fire.analysis}
 
 function parseDimensionScores(analysis: string): DimensionScores {
   const extractScore = (label: string): number => {
-    const regex = new RegExp(`${label}[:\\s]*(?:\\[)?(\\d+)\\s*\\/\\s*10`, "i");
+    // Match both "Label | X/10" (table format) and "Label: X/10" formats
+    const regex = new RegExp(`${label}[:\\s|]*(?:\\[)?(\\d+)\\s*\\/\\s*10`, "i");
     const match = analysis.match(regex);
     return match ? Math.min(10, Math.max(1, parseInt(match[1]))) : 5;
   };
 
   return {
+    // V2 dimension names (with fallbacks to V1 names)
     problemClarity: extractScore("Problem Clarity"),
-    marketSize: extractScore("Market Size"),
-    competitionRisk: extractScore("Competition Risk"),
-    execution: extractScore("Execution"),
-    businessModel: extractScore("Business Model"),
+    marketSize: extractScore("Market Opportunity|Market Size"),
+    competitionRisk: extractScore("Competitive Position|Competition Risk"),
+    execution: extractScore("Execution Feasibility|Execution"),
+    businessModel: extractScore("Business Viability|Business Model"),
   };
+}
+
+/**
+ * Extract content from an XML tag in the analysis text.
+ * Returns the content between <tag> and </tag>, or empty string if not found.
+ */
+function extractXmlTag(analysis: string, tagName: string): string {
+  const regex = new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "i");
+  const match = analysis.match(regex);
+  return match ? match[1].trim() : "";
 }
 
 function parseSynthesisOutput(analysis: string): {
@@ -406,59 +523,86 @@ function parseSynthesisOutput(analysis: string): {
   const safeAnalysis = analysis || "";
 
   // Determine decision from Market Fit Scan result
+  // V2: look inside <verdict> tag first, then fall back to scanning full text
   let decision: "STRONG_SIGNAL" | "CONDITIONAL_FIT" | "WEAK_SIGNAL" | "NO_MARKET_FIT" =
     "CONDITIONAL_FIT";
-  const upperAnalysis = safeAnalysis.toUpperCase();
 
-  if (upperAnalysis.includes("STRONG_SIGNAL") || upperAnalysis.includes("STRONG SIGNAL")) {
+  const verdictTag = extractXmlTag(safeAnalysis, "verdict");
+  const searchText = (verdictTag || safeAnalysis).toUpperCase();
+
+  if (searchText.includes("STRONG_SIGNAL") || searchText.includes("STRONG SIGNAL")) {
     decision = "STRONG_SIGNAL";
-  } else if (upperAnalysis.includes("NO_MARKET_FIT") || upperAnalysis.includes("NO MARKET FIT")) {
-    decision = "NO_MARKET_FIT";
-  } else if (upperAnalysis.includes("WEAK_SIGNAL") || upperAnalysis.includes("WEAK SIGNAL")) {
-    decision = "WEAK_SIGNAL";
   } else if (
-    upperAnalysis.includes("CONDITIONAL_FIT") ||
-    upperAnalysis.includes("CONDITIONAL FIT")
+    searchText.includes("NO_MARKET_FIT") ||
+    searchText.includes("NO MARKET FIT") ||
+    searchText.includes("NO FIT")
   ) {
+    decision = "NO_MARKET_FIT";
+  } else if (searchText.includes("WEAK_SIGNAL") || searchText.includes("WEAK SIGNAL")) {
+    decision = "WEAK_SIGNAL";
+  } else if (searchText.includes("CONDITIONAL_FIT") || searchText.includes("CONDITIONAL FIT")) {
     decision = "CONDITIONAL_FIT";
   }
 
-  // Extract confidence score (look for patterns like "7/10" or "Confidence: 7")
-  const confidenceMatch = safeAnalysis.match(/confidence[:\s]*(\d+)\s*\/\s*10|(\d+)\s*\/\s*10/i);
+  // Extract confidence score
+  // V2: look inside <verdict> tag first
+  const confidenceSource = verdictTag || safeAnalysis;
+  const confidenceMatch = confidenceSource.match(
+    /confidence[:\s]*(\d+)\s*\/\s*10|(\d+)\s*\/\s*10/i,
+  );
   const confidence = confidenceMatch ? parseInt(confidenceMatch[1] || confidenceMatch[2]) : 5;
 
-  // Extract executive summary (first section after "Executive Summary")
-  const summaryMatch = safeAnalysis.match(/executive summary[:\s]*\n+([\s\S]*?)(?=\n\n|\n###|$)/i);
-  let executiveSummary = "Evaluation complete.";
-  if (summaryMatch && summaryMatch[1]) {
-    executiveSummary = summaryMatch[1].trim().split("\n")[0] || executiveSummary;
-  } else if (safeAnalysis) {
-    executiveSummary = safeAnalysis.split("\n\n")[0] || executiveSummary;
+  // Extract executive summary
+  // V2: try <executive_summary> tag first, then fall back to markdown
+  let executiveSummary = extractXmlTag(safeAnalysis, "executive_summary");
+  if (!executiveSummary) {
+    const summaryMatch = safeAnalysis.match(
+      /executive summary[:\s]*\n+([\s\S]*?)(?=\n\n|\n###|$)/i,
+    );
+    if (summaryMatch && summaryMatch[1]) {
+      executiveSummary = summaryMatch[1].trim().split("\n")[0] || "Evaluation complete.";
+    } else if (safeAnalysis) {
+      executiveSummary = safeAnalysis.split("\n\n")[0] || "Evaluation complete.";
+    } else {
+      executiveSummary = "Evaluation complete.";
+    }
   }
 
-  // Helper to extract bullet lists
-  const extractList = (label: string): string[] => {
-    const regex = new RegExp(
-      `${label}[:\\s]*(?:\\([^)]+\\))?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\n|\\n###|$)`,
-      "i",
-    );
-    const match = safeAnalysis.match(regex);
-    if (!match || !match[1]) return [];
-    return match[1]
+  // Helper to extract bullet lists — tries XML tag first, then markdown
+  const extractList = (xmlTag: string, markdownLabel: string): string[] => {
+    // V2: try XML tag first
+    const xmlContent = extractXmlTag(safeAnalysis, xmlTag);
+    const source =
+      xmlContent ||
+      (() => {
+        const regex = new RegExp(
+          `${markdownLabel}[:\\s]*(?:\\([^)]+\\))?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\n|\\n###|$)`,
+          "i",
+        );
+        const match = safeAnalysis.match(regex);
+        return match?.[1] || "";
+      })();
+
+    if (!source) return [];
+    return source
       .split("\n")
       .map((line: string) => line.replace(/^[\d\.\-\*•]\s*/, "").trim())
-      .filter((line: string) => line.length > 0 && !line.startsWith("#"))
+      .filter((line: string) => line.length > 0 && !line.startsWith("#") && !line.startsWith("<"))
       .slice(0, 5);
   };
+
+  // V2: extract straight talk
+  const straightTalk = extractXmlTag(safeAnalysis, "straight_talk");
 
   return {
     decision,
     confidence: Math.min(10, Math.max(1, confidence)),
     dimensions: parseDimensionScores(safeAnalysis),
     executiveSummary,
-    keyStrengths: extractList("Key Strengths"),
-    keyRisks: extractList("Key Risks"),
-    nextSteps: extractList("Recommended Next Steps|Next Steps"),
-    killConditions: extractList("Kill Conditions"),
+    keyStrengths: extractList("top_strengths", "Key Strengths|Top Strengths"),
+    keyRisks: extractList("top_risks", "Key Risks|Top Risks"),
+    nextSteps: extractList("next_steps", "Recommended Next Steps|Next Steps"),
+    killConditions: extractList("kill_conditions", "Kill Conditions"),
+    ...(straightTalk ? { straightTalk } : {}),
   };
 }

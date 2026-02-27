@@ -31,7 +31,7 @@ export type { User, Session }
  * Sign in with magic link (passwordless email)
  */
 export async function signInWithMagicLink(email: string): Promise<{ error: Error | null }> {
-  const redirectTo = `${window.location.origin}/auth/callback`
+  const redirectTo = window.location.origin
   
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -47,7 +47,7 @@ export async function signInWithMagicLink(email: string): Promise<{ error: Error
  * Sign in with Google OAuth
  */
 export async function signInWithGoogle(): Promise<{ error: Error | null }> {
-  const redirectTo = `${window.location.origin}/auth/callback`
+  const redirectTo = window.location.origin
   
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

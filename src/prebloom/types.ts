@@ -69,6 +69,7 @@ export interface Verdict {
   keyRisks: string[];
   nextSteps: string[];
   killConditions: string[];
+  straightTalk?: string; // V2: the most important paragraph — direct founder advice
 
   // Iteration tracking
   version: number; // 1, 2, 3...
