@@ -458,7 +458,7 @@ export async function evaluateIdea(
     name: "Intake",
     systemPrompt: INTAKE_SYSTEM_PROMPT,
     userMessage: intakeMessage,
-    maxSearches: 1, // Tier 1: one search if needed
+    maxSearches: 1,
   });
 
   // Phase 2: Catalyst and Fire run in parallel
@@ -522,13 +522,13 @@ Attack this startup idea. Challenge assumptions, find the dangers, try to kill i
       name: "Catalyst",
       systemPrompt: CATALYST_SYSTEM_PROMPT,
       userMessage: catalystMessage,
-      maxSearches: 1, // Tier 1: one search if needed
+      maxSearches: 3,
     }),
     runAgent({
       name: "Fire",
       systemPrompt: FIRE_SYSTEM_PROMPT,
       userMessage: fireMessage,
-      maxSearches: 1, // Tier 1: one search if needed
+      maxSearches: 3,
     }),
   ]);
 
@@ -577,7 +577,7 @@ Weigh the Catalyst Council's case FOR and the Firing Squad's case AGAINST this s
     name: "Synthesis",
     systemPrompt: SYNTHESIS_SYSTEM_PROMPT,
     userMessage: synthesisInput,
-    maxSearches: 1, // Tier 1: one search if needed
+    maxSearches: 0,
   });
 
   // Phase 4: Apply humanizer skill if enabled
