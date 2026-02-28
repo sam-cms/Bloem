@@ -14,7 +14,8 @@ import { listSkills } from "../skills/index.js";
 import { transcribeAudio, checkWhisperHealth } from "../audio/transcribe.js";
 import { runMarketResearch } from "../groundwork/market-research.js";
 import { runDeepResearch } from "../groundwork/deep-research.js";
-import type { MarketResearchResult } from "../groundwork/types.js";
+import type { MarketResearchResult, GroundworkResult } from "../groundwork/types.js";
+import { runGroundwork } from "../groundwork/orchestrator.js";
 import * as storage from "../storage/adapter.js";
 import { extractAuthContext, ensureUserProfile, type AuthContext } from "../auth/index.js";
 
@@ -67,6 +68,9 @@ const researchJobs = new Map<
     completedAt?: string;
   }
 >();
+
+// Groundwork V1 results (in-memory, same pattern as research jobs)
+const inMemoryGroundwork = new Map<string, GroundworkResult>();
 
 // Research request schema
 const researchRequestSchema = z.object({
@@ -729,6 +733,98 @@ export async function handlePrebloomHttpRequest(
       sendError(res, 500, message);
       return true;
     }
+  }
+
+  // POST /prebloom/groundwork/:evaluationId — Trigger Groundwork V1 pipeline
+  const groundworkTriggerMatch = url.pathname.match(/^\/prebloom\/groundwork\/([a-f0-9-]+)$/);
+  if (groundworkTriggerMatch && req.method === "POST") {
+    const evaluationId = groundworkTriggerMatch[1];
+
+    // Check if already running
+    const existing = inMemoryGroundwork.get(evaluationId);
+    if (existing) {
+      sendJson(res, 200, {
+        id: existing.id,
+        evaluationId,
+        status: existing.status,
+        message:
+          existing.status === "running"
+            ? "Groundwork already running for this evaluation."
+            : "Groundwork already completed. Use GET to retrieve results.",
+      });
+      return true;
+    }
+
+    // Load evaluation from storage
+    const evaluation = await storage.getEvaluation(evaluationId);
+    if (!evaluation) {
+      sendError(res, 404, "Evaluation not found");
+      return true;
+    }
+
+    if (evaluation.status !== "completed") {
+      sendError(res, 400, "Evaluation must be completed before running Groundwork");
+      return true;
+    }
+
+    // Build council context from the evaluation
+    const councilContext = {
+      intake: evaluation.agentIntake || "",
+      catalyst: evaluation.agentCatalyst || "",
+      fire: evaluation.agentFire || "",
+      synthesis: evaluation.agentSynthesis || "",
+      ideaText: evaluation.inputData
+        ? `Problem: ${(evaluation.inputData as Record<string, string>).problem || ""}\nSolution: ${(evaluation.inputData as Record<string, string>).solution || ""}\nTarget Market: ${(evaluation.inputData as Record<string, string>).targetMarket || ""}\nBusiness Model: ${(evaluation.inputData as Record<string, string>).businessModel || ""}`
+        : undefined,
+    };
+
+    // Create initial running result
+    const groundworkId = crypto.randomUUID();
+    const runningResult: GroundworkResult = {
+      id: groundworkId,
+      evaluationId,
+      createdAt: new Date().toISOString(),
+      status: "running",
+    };
+    inMemoryGroundwork.set(evaluationId, runningResult);
+
+    // Start async — don't block the response
+    runGroundwork(evaluationId, councilContext)
+      .then((result) => {
+        inMemoryGroundwork.set(evaluationId, result);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error(`❌ [Groundwork] Failed for ${evaluationId}: ${message}`);
+        inMemoryGroundwork.set(evaluationId, {
+          ...runningResult,
+          status: "failed",
+          error: message,
+        });
+      });
+
+    sendJson(res, 202, {
+      id: groundworkId,
+      evaluationId,
+      status: "running",
+      message: "Groundwork started. Poll GET /prebloom/groundwork/:evaluationId for results.",
+    });
+    return true;
+  }
+
+  // GET /prebloom/groundwork/:evaluationId — Poll for Groundwork results
+  const groundworkPollMatch = url.pathname.match(/^\/prebloom\/groundwork\/([a-f0-9-]+)$/);
+  if (groundworkPollMatch && req.method === "GET") {
+    const evaluationId = groundworkPollMatch[1];
+    const result = inMemoryGroundwork.get(evaluationId);
+
+    if (!result) {
+      sendError(res, 404, "No Groundwork run found for this evaluation");
+      return true;
+    }
+
+    sendJson(res, 200, result);
+    return true;
   }
 
   // Unknown route

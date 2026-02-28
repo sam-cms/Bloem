@@ -1,3 +1,5 @@
+// --- Legacy research types (used by existing /groundwork/research endpoints) ---
+
 export interface CompetitorInfo {
   name: string;
   website?: string;
@@ -29,4 +31,56 @@ export interface ResearchRequest {
   idea: string;
   industry?: string;
   researchType: "quick" | "deep";
+}
+
+// --- Groundwork V1 types ---
+
+export interface CouncilContext {
+  intake: string;
+  catalyst: string;
+  fire: string;
+  synthesis: string;
+  ideaText?: string;
+}
+
+export interface GroundworkAgentOutput {
+  agent: string;
+  analysis: string;
+  metrics: {
+    durationMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    searches: number;
+  };
+}
+
+export interface GroundworkResult {
+  id: string;
+  evaluationId: string;
+  createdAt: string;
+  status: "running" | "completed" | "failed";
+
+  // Phase A: Intelligence
+  competitorIntelligence?: GroundworkAgentOutput;
+  marketSizing?: GroundworkAgentOutput;
+  gapAnalysis?: GroundworkAgentOutput;
+
+  // Phase B: Blueprint
+  customerPersonas?: GroundworkAgentOutput;
+  gtmPlaybook?: GroundworkAgentOutput;
+  mvpScope?: GroundworkAgentOutput;
+
+  // Metrics
+  metrics?: GroundworkMetrics;
+  error?: string;
+}
+
+export interface GroundworkMetrics {
+  totalDurationMs: number;
+  phaseADurationMs: number;
+  phaseBDurationMs: number;
+  agents: Record<string, GroundworkAgentOutput["metrics"]>;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalSearches: number;
 }
