@@ -350,10 +350,17 @@ export async function handlePrebloomHttpRequest(
           });
         })
         .catch(async (error) => {
-          await storage.updateEvaluation(evaluationId, {
-            status: "failed",
-            error: error.message,
-          });
+          console.error(`❌ [Prebloom] Evaluation ${evaluationId} failed:`, error.message);
+          try {
+            await storage.updateEvaluation(evaluationId, {
+              status: "failed",
+            });
+          } catch (storeErr) {
+            console.error(
+              `❌ [Prebloom] Failed to store error status:`,
+              (storeErr as Error).message,
+            );
+          }
         });
 
       // Return evaluation ID immediately (async processing)
@@ -543,10 +550,17 @@ export async function handlePrebloomHttpRequest(
           });
         })
         .catch(async (error) => {
-          await storage.updateEvaluation(evaluationId, {
-            status: "failed",
-            error: error.message,
-          });
+          console.error(`❌ [Prebloom] Evaluation ${evaluationId} failed:`, error.message);
+          try {
+            await storage.updateEvaluation(evaluationId, {
+              status: "failed",
+            });
+          } catch (storeErr) {
+            console.error(
+              `❌ [Prebloom] Failed to store error status:`,
+              (storeErr as Error).message,
+            );
+          }
         });
 
       // Return evaluation ID immediately
