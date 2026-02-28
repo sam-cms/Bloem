@@ -503,3 +503,28 @@ export async function getStats(): Promise<{
     storageMode: "in-memory",
   };
 }
+
+/**
+ * Mark an evaluation as served (result successfully returned to client)
+ */
+export async function markServed(id: string): Promise<void> {
+  // Update in-memory
+  const evaluation = inMemoryEvaluations.get(id);
+  if (evaluation) {
+    (evaluation as any).served = true;
+    (evaluation as any).servedAt = new Date().toISOString();
+  }
+
+  // Update Supabase (if column exists — silently skip if not)
+  if (isSupabaseConfigured()) {
+    try {
+      const client = supabase.getSupabaseClient();
+      await client
+        .from("evaluations")
+        .update({ served: true, served_at: new Date().toISOString() })
+        .eq("id", id);
+    } catch {
+      // Column may not exist yet — that's fine
+    }
+  }
+}

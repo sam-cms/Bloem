@@ -382,8 +382,15 @@ export async function handlePrebloomHttpRequest(
     }
 
     if (evaluation.status === "completed") {
+      const served = !!(evaluation.decision && evaluation.executiveSummary);
+      // Mark as served (fire-and-forget — don't block the response)
+      if (served) {
+        storage.markServed(evaluationId).catch(() => {});
+      }
       sendJson(res, 200, {
         status: "completed",
+        served,
+        servedAt: served ? new Date().toISOString() : null,
         verdict: {
           decision: evaluation.decision,
           confidence: evaluation.confidence,
