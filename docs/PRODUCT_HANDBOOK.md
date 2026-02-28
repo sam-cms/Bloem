@@ -265,3 +265,13 @@ See `docs/CHANGELOG_PIPELINE.md` for full history of changes and experiments.
 - `docs/CHANGELOG_PIPELINE.md` — Engineering log of all pipeline changes
 - `docs/PROPOSED_CHANGES_V1.6.md` — V1.6 change proposal (historical)
 - Trello board: https://trello.com/b/AuhfrcHQ/prebloom
+
+---
+
+## Handbook Rules
+
+1. **Every new feature must fit this document.** If a proposed feature, change, or direction doesn't align with the vision, persona, flow, or architecture defined here — Bruce flags it to Sam before any work begins.
+
+2. **If it doesn't fit, it doesn't ship.** Not without an explicit decision to update the handbook first. The handbook changes, THEN the code changes. Never the other way around.
+
+3. **Bruce enforces this automatically.** No need for Sam to ask "does this fit?" — Bruce checks against the handbook on every feature, prompt change, or architectural decision and raises conflicts proactively.
