@@ -24,6 +24,7 @@ import { GTM_PLAYBOOK_SYSTEM_PROMPT, GTM_PLAYBOOK_SEARCH_BUDGET } from "./agents
 import { MVP_SCOPE_SYSTEM_PROMPT, MVP_SCOPE_SEARCH_BUDGET } from "./agents/mvp-scope.js";
 
 const MODEL = "claude-sonnet-4-6";
+const MAX_RETRIES = 3;
 
 // Anthropic API response types for native web search
 interface AnthropicResponse {
@@ -35,11 +36,18 @@ interface AnthropicResponse {
   usage?: {
     input_tokens: number;
     output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
     server_tool_use?: {
       web_search_requests?: number;
     };
   };
   error?: { message: string };
+}
+
+/** Sleep helper */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getApiKey(): string {
@@ -88,39 +96,71 @@ async function runGroundworkAgent(opts: {
     const requestBody: Record<string, unknown> = {
       model: MODEL,
       max_tokens: 16000,
-      system: systemPrompt,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages,
     };
     if (tools.length > 0) {
       requestBody.tools = tools;
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(300_000), // 5 min — web search can be slow
-    });
+    let data: AnthropicResponse;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Anthropic API error for ${name}: ${response.status} - ${errorText}`);
+    // Retry loop with token bucket awareness (read retry-after header on 429)
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(300_000), // 5 min — web search can be slow
+      });
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after");
+        const waitSec = retryAfter ? parseInt(retryAfter, 10) : 30 * attempt;
+        console.log(
+          `  ⏳ [${name}] Rate limited (attempt ${attempt}/${MAX_RETRIES}) — waiting ${waitSec}s...`,
+        );
+        await sleep(waitSec * 1000);
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Anthropic API error for ${name}: ${response.status} - ${errorText}`);
+      }
+
+      data = (await response.json()) as AnthropicResponse;
+
+      if (data.error) {
+        throw new Error(`Anthropic API error for ${name}: ${data.error.message}`);
+      }
+      break; // Success — exit retry loop
     }
 
-    const data = (await response.json()) as AnthropicResponse;
-
-    if (data.error) {
-      throw new Error(`Anthropic API error for ${name}: ${data.error.message}`);
+    // @ts-expect-error data is assigned inside the retry loop
+    if (!data) {
+      throw new Error(`${name}: All ${MAX_RETRIES} retry attempts exhausted (rate limited)`);
     }
 
     if (data.usage) {
       totalInputTokens += data.usage.input_tokens;
       totalOutputTokens += data.usage.output_tokens;
       totalSearches += data.usage.server_tool_use?.web_search_requests || 0;
+      if (data.usage.cache_read_input_tokens) {
+        console.log(
+          `  💾 [${name}] Cache hit: ${data.usage.cache_read_input_tokens} tokens read from cache`,
+        );
+      }
     }
 
     // Extract text blocks
@@ -230,24 +270,32 @@ export async function runGroundwork(
     // === Phase A: Intelligence ===
     const phaseAStarted = Date.now();
 
-    // A1 + A2 run in parallel
-    const [a1, a2] = await Promise.all([
-      runGroundworkAgent({
-        name: "Competitor Intelligence",
-        systemPrompt: COMPETITOR_INTELLIGENCE_SYSTEM_PROMPT,
-        userMessage: `${councilBlock}\n\nSearch for and profile the real competitors for this startup idea. Use web search to find actual pricing, funding data, and features.`,
-        maxSearches: COMPETITOR_INTELLIGENCE_SEARCH_BUDGET,
-      }),
-      runGroundworkAgent({
-        name: "Market Sizing",
-        systemPrompt: MARKET_SIZING_SYSTEM_PROMPT,
-        userMessage: `${councilBlock}\n\nCalculate the market size (TAM/SAM/SOM) for this startup idea. Use web search to find market reports, industry data, and growth rates.`,
-        maxSearches: MARKET_SIZING_SEARCH_BUDGET,
-      }),
-    ]);
+    // A1 then A2 sequential (Tier 1 rate limit: 30k ITPM — parallel spikes past it)
+    // TODO: Switch to Promise.all when org upgrades to Tier 2+ (80k+ ITPM)
+    const a1 = await runGroundworkAgent({
+      name: "Competitor Intelligence",
+      systemPrompt: COMPETITOR_INTELLIGENCE_SYSTEM_PROMPT,
+      userMessage: `${councilBlock}\n\nSearch for and profile the real competitors for this startup idea. Use web search to find actual pricing, funding data, and features.`,
+      maxSearches: COMPETITOR_INTELLIGENCE_SEARCH_BUDGET,
+    });
+
+    // Brief cooldown between agents
+    console.log(`  ⏳ [Groundwork] Cooling down 10s before A2...`);
+    await sleep(10_000);
+
+    const a2 = await runGroundworkAgent({
+      name: "Market Sizing",
+      systemPrompt: MARKET_SIZING_SYSTEM_PROMPT,
+      userMessage: `${councilBlock}\n\nCalculate the market size (TAM/SAM/SOM) for this startup idea. Use web search to find market reports, industry data, and growth rates.`,
+      maxSearches: MARKET_SIZING_SEARCH_BUDGET,
+    });
 
     result.competitorIntelligence = a1;
     result.marketSizing = a2;
+
+    // Cooldown before A3 — rate limit recovery (token bucket replenishment)
+    console.log(`  ⏳ [Groundwork] Cooling down 15s before A3 (rate limit recovery)...`);
+    await sleep(15_000);
 
     // A3 runs with A1 + A2 outputs
     const a3 = await runGroundworkAgent({
@@ -277,6 +325,10 @@ Synthesize the competitor intelligence and market sizing data above. Identify ga
 
     console.log(`\n📊 [Groundwork] Phase A complete (${(phaseADuration / 1000).toFixed(1)}s)\n`);
 
+    // Cooldown before Phase B — let rate limit window fully recover
+    console.log(`  ⏳ [Groundwork] Cooling down 30s before Phase B (rate limit recovery)...`);
+    await sleep(30_000);
+
     // === Phase B: Blueprint ===
     const phaseBStarted = Date.now();
 
@@ -302,27 +354,34 @@ ${a3.analysis}
 </document_content>
 </document>`;
 
-    // B1 + B2 + B3 run in parallel
-    const [b1, b2, b3] = await Promise.all([
-      runGroundworkAgent({
-        name: "Customer Personas",
-        systemPrompt: CUSTOMER_PERSONAS_SYSTEM_PROMPT,
-        userMessage: `${phaseBContext}\n\nDefine 2-3 specific customer personas for this startup idea, based on the competitor research, market sizing, and gap analysis above.`,
-        maxSearches: CUSTOMER_PERSONAS_SEARCH_BUDGET,
-      }),
-      runGroundworkAgent({
-        name: "GTM Playbook",
-        systemPrompt: GTM_PLAYBOOK_SYSTEM_PROMPT,
-        userMessage: `${phaseBContext}\n\nBuild a go-to-market playbook for this startup idea, based on the competitive landscape, market sizing, and opportunity gaps identified above.`,
-        maxSearches: GTM_PLAYBOOK_SEARCH_BUDGET,
-      }),
-      runGroundworkAgent({
-        name: "MVP Scope",
-        systemPrompt: MVP_SCOPE_SYSTEM_PROMPT,
-        userMessage: `${phaseBContext}\n\nDefine the MVP scope for this startup idea. What to build first, what to skip, tech stack, timeline, and success criteria.`,
-        maxSearches: MVP_SCOPE_SEARCH_BUDGET,
-      }),
-    ]);
+    // B1, B2, B3 sequential (Tier 1 rate limit safety)
+    // TODO: Switch to Promise.all when org upgrades to Tier 2+
+    const b1 = await runGroundworkAgent({
+      name: "Customer Personas",
+      systemPrompt: CUSTOMER_PERSONAS_SYSTEM_PROMPT,
+      userMessage: `${phaseBContext}\n\nDefine 2-3 specific customer personas for this startup idea, based on the competitor research, market sizing, and gap analysis above.`,
+      maxSearches: CUSTOMER_PERSONAS_SEARCH_BUDGET,
+    });
+
+    console.log(`  ⏳ [Groundwork] Cooling down 10s before B2...`);
+    await sleep(10_000);
+
+    const b2 = await runGroundworkAgent({
+      name: "GTM Playbook",
+      systemPrompt: GTM_PLAYBOOK_SYSTEM_PROMPT,
+      userMessage: `${phaseBContext}\n\nBuild a go-to-market playbook for this startup idea, based on the competitive landscape, market sizing, and opportunity gaps identified above.`,
+      maxSearches: GTM_PLAYBOOK_SEARCH_BUDGET,
+    });
+
+    console.log(`  ⏳ [Groundwork] Cooling down 10s before B3...`);
+    await sleep(10_000);
+
+    const b3 = await runGroundworkAgent({
+      name: "MVP Scope",
+      systemPrompt: MVP_SCOPE_SYSTEM_PROMPT,
+      userMessage: `${phaseBContext}\n\nDefine the MVP scope for this startup idea. What to build first, what to skip, tech stack, timeline, and success criteria.`,
+      maxSearches: MVP_SCOPE_SEARCH_BUDGET,
+    });
 
     result.customerPersonas = b1;
     result.gtmPlaybook = b2;

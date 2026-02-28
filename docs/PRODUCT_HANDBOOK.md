@@ -345,3 +345,76 @@ See `docs/CHANGELOG_PIPELINE.md` for full history of changes and experiments.
 2. **If it doesn't fit, it doesn't ship.** Not without an explicit decision to update the handbook first. The handbook changes, THEN the code changes. Never the other way around.
 
 3. **Bruce enforces this automatically.** No need for Sam to ask "does this fit?" — Bruce checks against the handbook on every feature, prompt change, or architectural decision and raises conflicts proactively.
+
+---
+
+## Deep Search Architecture — Rate Limit & Token Optimization
+
+> Added: 2026-03-01 | Status: Implemented in Groundwork V1
+> ⚠️ REVIEW WITH SAM: The articles below need a joint deep-dive session
+
+### The Problem
+Native web search (`web_search_20250305`) is token-heavy — Claude pulls full HTML from websites server-side. A single agent can consume 50-80k input tokens. Running agents in parallel spikes past the org rate limit (30k ITPM on Tier 1).
+
+### Three Optimization Techniques
+
+#### 1. Prompt Caching (biggest win for rate limits)
+- **What:** Mark shared context (system prompt, Council verdict) with `cache_control: { type: "ephemeral" }`
+- **Why:** Cached input tokens **don't count toward ITPM rate limits**
+- **Impact:** Council context (~4k tokens) shared across 6 agents = effectively free after first cache write
+- **Also saves money:** Cache reads cost 10% of normal input token price
+- **TTL options:** 5 minutes (default) or 1 hour (costs more)
+- **Docs:** https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+
+#### 2. Dynamic Filtering (`web_search_20260209`)
+- **What:** Newer web search tool version — Claude writes code to filter search results BEFORE loading into context
+- **Why:** Basic web search loads full HTML pages (~50-80k tokens). Dynamic filtering keeps only relevant snippets.
+- **Impact:** Estimated 50-70% reduction in input tokens per search-heavy agent
+- **Requires:** Opus 4.6 or Sonnet 4.6 + code execution tool enabled
+- **Docs:** https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
+
+#### 3. Smart Retry with Token Bucket Awareness
+- **What:** Anthropic uses token bucket algorithm — capacity replenishes continuously, not at fixed intervals
+- **Why:** Instead of arbitrary 60s waits, read the `retry-after` header from 429 responses and wait exactly that long
+- **Impact:** Minimizes idle time while respecting limits
+- **Also:** Ramp up traffic gradually to avoid acceleration limits (sharp spikes get throttled even within limits)
+- **Docs:** https://platform.claude.com/docs/en/api/rate-limits
+
+### Implementation Strategy
+1. Cache Council context across all 6 Groundwork agents
+2. Use `web_search_20260209` for dynamic filtering on search-heavy agents (A1, A2)
+3. Smart retry: on 429, read `retry-after`, wait, retry (max 3 attempts)
+4. Run agents sequentially when on Tier 1 (30k ITPM); switch to parallel when tier upgrades
+5. Monitor: track actual input tokens per agent to find optimization opportunities
+
+### Rate Limit Tiers (Anthropic)
+| Tier | Deposit | ITPM (Sonnet) | ITPM (Opus) |
+|------|---------|---------------|-------------|
+| Tier 1 | $5 | 30,000 | 30,000 |
+| Tier 2 | $40 | 80,000 | 40,000 |
+| Tier 3 | $200 | 200,000 | 100,000 |
+| Tier 4 | $400 | 400,000 | 200,000 |
+
+**Note:** Moving to Tier 2 ($40 deposit) would nearly 3x our capacity and likely allow parallel execution again.
+
+### Articles & Resources for Deep-Dive with Sam
+> 📌 TODO: Review these together — Sam wants to understand token buckets, caching mechanics, and optimization patterns
+
+1. **Anthropic Rate Limits (official docs)** — Token bucket algorithm, tier system, cache-aware ITPM
+   https://platform.claude.com/docs/en/api/rate-limits
+
+2. **Prompt Caching (official docs)** — How to implement, TTL options, cost savings math
+   https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+
+3. **Web Search Tool (official docs)** — Basic vs dynamic filtering, max_uses, domain filtering
+   https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
+
+4. **Prompt Caching: 10x Cheaper LLM Tokens (ngrok blog)** — Real benchmarks on latency reduction
+   https://ngrok.com/blog/prompt-caching
+
+5. **Anthropic API Pricing & Optimization (Finout)** — Rate limits explained, cost strategies
+   https://www.finout.io/blog/anthropic-api-pricing
+
+6. **Token Bucket Algorithm (Wikipedia)** — How continuous replenishment works vs fixed windows
+   https://en.wikipedia.org/wiki/Token_bucket
+
