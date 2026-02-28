@@ -250,6 +250,12 @@ async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
     return {
       agent: name,
       analysis: text,
+      metrics: {
+        durationMs: elapsed,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        searches: searchesUsed,
+      },
     };
   }
 }
@@ -458,7 +464,7 @@ export async function evaluateIdea(
     name: "Intake",
     systemPrompt: INTAKE_SYSTEM_PROMPT,
     userMessage: intakeMessage,
-    maxSearches: 1,
+    maxSearches: 0,
   });
 
   // Phase 2: Catalyst and Fire run in parallel
@@ -522,13 +528,13 @@ Attack this startup idea. Challenge assumptions, find the dangers, try to kill i
       name: "Catalyst",
       systemPrompt: CATALYST_SYSTEM_PROMPT,
       userMessage: catalystMessage,
-      maxSearches: 3,
+      maxSearches: 1,
     }),
     runAgent({
       name: "Fire",
       systemPrompt: FIRE_SYSTEM_PROMPT,
       userMessage: fireMessage,
-      maxSearches: 3,
+      maxSearches: 1,
     }),
   ]);
 
@@ -654,6 +660,31 @@ Weigh the Catalyst Council's case FOR and the Firing Squad's case AGAINST this s
     previousId,
     actionItems,
     userResponses: options.userResponses,
+    // Pipeline metrics
+    metrics: {
+      totalDurationMs: totalElapsed,
+      agents: {
+        intake: intake.metrics,
+        catalyst: catalyst.metrics,
+        fire: fire.metrics,
+        synthesis: synthesis.metrics,
+      },
+      totalInputTokens:
+        (intake.metrics?.inputTokens || 0) +
+        (catalyst.metrics?.inputTokens || 0) +
+        (fire.metrics?.inputTokens || 0) +
+        (synthesis.metrics?.inputTokens || 0),
+      totalOutputTokens:
+        (intake.metrics?.outputTokens || 0) +
+        (catalyst.metrics?.outputTokens || 0) +
+        (fire.metrics?.outputTokens || 0) +
+        (synthesis.metrics?.outputTokens || 0),
+      totalSearches:
+        (intake.metrics?.searches || 0) +
+        (catalyst.metrics?.searches || 0) +
+        (fire.metrics?.searches || 0) +
+        (synthesis.metrics?.searches || 0),
+    },
   };
 }
 

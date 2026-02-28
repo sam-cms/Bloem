@@ -13,11 +13,19 @@ export const ideaInputSchema = z.object({
 export type IdeaInput = z.infer<typeof ideaInputSchema>;
 
 // Structured output from each agent
+export interface AgentMetrics {
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  searches: number;
+}
+
 export interface AgentOutput {
   agent: string;
   analysis: string;
   score?: number;
   highlights?: string[];
+  metrics?: AgentMetrics;
 }
 
 // Dimension scores for the scorecard
@@ -76,6 +84,14 @@ export interface Verdict {
   previousId?: string; // Link to previous version
   actionItems?: ActionItem[]; // Extracted concerns for next iteration
   userResponses?: ActionItemResponse[]; // What user submitted for this iteration
+  // Pipeline metrics
+  metrics?: {
+    totalDurationMs: number;
+    agents: Record<string, AgentMetrics | undefined>;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totalSearches: number;
+  };
 }
 
 // Evaluation job status

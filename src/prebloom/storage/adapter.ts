@@ -29,6 +29,8 @@ interface InMemoryEvaluation {
   user_responses: Record<string, string> | null;
   verdict: Verdict | null;
   error: string | null;
+  metrics: Record<string, any> | null;
+  straightTalk: string | null;
 }
 
 const inMemoryProjects = new Map<string, InMemoryProject>();
@@ -63,10 +65,24 @@ export async function createProjectWithEvaluation(data: {
 }): Promise<{ projectId: string; evaluationId: string }> {
   if (isSupabaseConfigured()) {
     const result = await supabase.createProjectWithEvaluation(data);
-    return {
-      projectId: result.project.id,
-      evaluationId: result.evaluation.id,
-    };
+    const projectId = result.project.id;
+    const evaluationId = result.evaluation.id;
+    // Cache in memory for metrics (not yet in Supabase schema)
+    inMemoryEvaluations.set(evaluationId, {
+      id: evaluationId,
+      created_at: new Date().toISOString(),
+      project_id: projectId,
+      version: 1,
+      status: "pending" as const,
+      raw_idea: data.rawIdea || null,
+      language: data.language || null,
+      user_responses: null,
+      verdict: null,
+      error: null,
+      metrics: null,
+      straightTalk: null,
+    });
+    return { projectId, evaluationId };
   }
 
   // In-memory fallback
@@ -94,6 +110,8 @@ export async function createProjectWithEvaluation(data: {
     user_responses: null,
     verdict: null,
     error: null,
+    metrics: null,
+    straightTalk: null,
   };
 
   inMemoryProjects.set(projectId, project);
@@ -133,11 +151,15 @@ export async function getEvaluation(id: string): Promise<{
   } | null;
   inputData: Record<string, any> | null;
   error: string | null;
+  metrics: Record<string, any> | null;
+  straightTalk: string | null;
   createdAt: string;
 } | null> {
   if (isSupabaseConfigured()) {
     const result = await supabase.getEvaluation(id);
     if (!result) return null;
+    // Merge metrics from in-memory cache (not yet in Supabase schema)
+    const cached = inMemoryEvaluations.get(id);
     return {
       id: result.id,
       projectId: result.project_id,
@@ -169,6 +191,8 @@ export async function getEvaluation(id: string): Promise<{
           : null,
       inputData: result.input_data,
       error: result.error || null,
+      metrics: cached?.verdict?.metrics || null,
+      straightTalk: cached?.verdict?.straightTalk || (result as any).straight_talk || null,
       createdAt: result.created_at,
     };
   }
@@ -197,6 +221,8 @@ export async function getEvaluation(id: string): Promise<{
     agentSynthesis: evaluation.verdict?.synthesis?.analysis || null,
     dimensions: evaluation.verdict?.dimensions || null,
     actionItems: evaluation.verdict?.actionItems || null,
+    metrics: evaluation.verdict?.metrics || null,
+    straightTalk: evaluation.verdict?.straightTalk || null,
     inputData: evaluation.verdict?.input || null,
     error: evaluation.error,
     createdAt: evaluation.created_at,
@@ -214,17 +240,16 @@ export async function updateEvaluation(
     error?: string;
   },
 ): Promise<void> {
-  if (isSupabaseConfigured()) {
-    await supabase.updateEvaluation(id, updates);
-    return;
-  }
-
-  // In-memory fallback
+  // Always cache in memory (metrics not yet in Supabase schema)
   const evaluation = inMemoryEvaluations.get(id);
   if (evaluation) {
     if (updates.status) evaluation.status = updates.status;
     if (updates.verdict) evaluation.verdict = updates.verdict;
     if (updates.error) evaluation.error = updates.error;
+  }
+
+  if (isSupabaseConfigured()) {
+    await supabase.updateEvaluation(id, updates);
   }
 }
 
@@ -305,6 +330,8 @@ export async function createIteration(
     user_responses: data.userResponses || null,
     verdict: null,
     error: null,
+    metrics: null,
+    straightTalk: null,
   };
 
   inMemoryEvaluations.set(evaluationId, evaluation);

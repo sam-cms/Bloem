@@ -398,9 +398,11 @@ export async function handlePrebloomHttpRequest(
           catalyst: { analysis: evaluation.agentCatalyst },
           fire: { analysis: evaluation.agentFire },
           synthesis: { analysis: evaluation.agentSynthesis },
+          straightTalk: evaluation.straightTalk || null,
         },
         projectId: evaluation.projectId,
         version: evaluation.version,
+        metrics: evaluation.metrics || null,
       });
       return true;
     }
