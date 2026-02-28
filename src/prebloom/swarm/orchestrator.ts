@@ -30,7 +30,7 @@ export interface EvaluationOptions {
 }
 
 // Default model for Prebloom evaluations
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-opus-4-6";
 
 // Custom web_search tool — agents call this autonomously, orchestrator
 // intercepts and executes via Brave Search API (10x cheaper than Claude built-in).
@@ -142,7 +142,7 @@ async function runAgent(options: RunAgentOptions): Promise<AgentOutput> {
   const { name, systemPrompt, userMessage, model = DEFAULT_MODEL, maxSearches = 0 } = options;
 
   console.log(
-    `🤖 [Prebloom] Running ${name} agent${maxSearches > 0 ? ` (search enabled, max ${maxSearches})` : ""}...`,
+    `🤖 [Prebloom] Running ${name} agent (model: ${model})${maxSearches > 0 ? ` (search enabled, max ${maxSearches})` : ""}...`,
   );
   const started = Date.now();
 

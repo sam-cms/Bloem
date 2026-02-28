@@ -92,3 +92,38 @@ Trimming Intake output verbosity (not content) will cut Intake time by ~10-15s w
 - XML tags for everything, few-shot examples per agent
 - **Why shelved:** Added tokens to every call, made prompts heavy
 - **Lesson:** Use selectively — structure + guardrails yes, full framework no
+
+---
+
+## V1.6.2 — Opus Model Upgrade (2026-02-28)
+
+### Changes
+- **Model:** claude-sonnet-4-6 → claude-opus-4-6 (all 4 agents)
+
+### Why
+- Output quality noticeably sharper: more specific insights, concrete pricing suggestions, time-pressure reasoning
+- `straightTalk` field now consistently populated (was None on Sonnet)
+- Next steps more actionable: specific numbers, timelines, tactics
+- Speed: NO degradation — Opus runs at same speed as Sonnet with our short prompts
+
+### Performance (Sonnet → Opus, same Prebloom idea)
+| Metric | Sonnet V1.6.1 | Opus V1.6.2 | Delta |
+|--------|---------------|-------------|-------|
+| Total time | 79.7s | 75.8s | -5% (same) |
+| Intake | 27.2s/953out | 28.9s/1035out | same |
+| Catalyst | 25.8s/813out | 25.0s/802out | same |
+| Fire | 25.4s/822out | 24.3s/768out | same |
+| Synthesis | 26.6s/860out | 21.9s/929out | same |
+| Total tokens | 14.7k in/3.4k out | 12.8k in/3.5k out | -13% in |
+| Cost | ~$0.05/run | ~$0.25/run | 5x |
+| Decision | COND_FIT 5/10 | COND_FIT 5/10 | same |
+| straightTalk | None | Present ✅ | fixed |
+
+### Quality Examples (Opus improvements)
+- "Subscription model is fatally mismatched with episodic usage — switch to pay-per-report immediately"
+- "Your technical audience can replicate the prompt chain in 10 minutes"
+- "You have maybe a 6-month window before this gets commoditized"
+- Concrete pricing: "€7/evaluation", "above 3% conversion to proceed"
+
+### Decision
+**Keep Opus.** Quality uplift is significant. Speed is identical. Cost increase ($0.05 → $0.25/run) is acceptable for the quality level needed to hook users.
