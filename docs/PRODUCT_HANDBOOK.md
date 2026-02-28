@@ -15,9 +15,30 @@ Prebloom is an AI-powered startup idea validator that gives founders the honest,
 
 ## Who It's For
 
-Solo founders, indie hackers, and pre-seed teams who are stuck in the "should I build this?" loop. People with ideas but no trusted advisor to pressure-test them. Not enterprise. Not VCs. Not people who already raised a Series A.
+### B2C (Phase 1 — now)
+Solo founders, indie hackers, side hustlers, aspiring creators, and pre-seed teams who are stuck in the "should I build this?" loop. People with ideas but no trusted advisor to pressure-test them.
 
-**The user we're building for:** Someone with a job, a side idea, and no co-founder to argue with at 11pm.
+| Segment | Description |
+|---------|-------------|
+| Tech founders | Startup builders, AI/SaaS |
+| Non-tech founders | Entrepreneurs with an idea, non-technical |
+| Side hustlers | Building on the side of a 9-5 |
+| Aspiring creators | YouTubers, Instagrammers wanting a business |
+
+**The common thread:** Has an idea, unsure if it's good, about to invest time and money, needs objectivity before they commit.
+
+### B2B (Phase 2 — after traction)
+Institutions that screen startup ideas at volume.
+
+| Segment | Description |
+|---------|-------------|
+| Accelerators & incubators | Screen applicants at scale |
+| Early-stage VCs | Filter deal flow faster |
+| Banks with startup programs | Innovation teams, lending decisions |
+
+**Why B2B later:** They can't have enough expert analysts. Volume is exploding, headcount isn't. But we need B2C traction and case studies first.
+
+**Strategy:** B2C builds the product, the brand, and the numbers. B2B is the scale play — enterprise licenses + API access. Land with free pilots at 3 accelerators, expand with case studies into banks and VCs.
 
 ---
 
@@ -158,6 +179,42 @@ This phase synthesizes everything — council verdict + Phase A intelligence —
 ### Output Format
 Not a 30-page report. Founders don't read those. Each deliverable: **one page max**, scannable, actionable. The kind of thing you pin on a wall or paste into a Notion doc. Battle cards, not business plans.
 
+### Groundwork Roadmap
+
+#### V1 — Build Now
+These are the core Groundwork deliverables. Ship these first.
+
+| Deliverable | Phase | Description |
+|-------------|-------|-------------|
+| Competitor Battle Cards | A: Intelligence | Top 3-5 competitors side by side: pricing, features, funding, weaknesses |
+| Market Sizing (TAM/SAM/SOM) | A: Intelligence | With methodology and real sources, not hallucinated numbers |
+| Gap Analysis | A: Intelligence | Where are the holes nobody is filling? |
+| Customer Personas | B: Blueprint | 2-3 ICPs: who, where to find them, pain points, what they pay for |
+| Positioning & Go-to-Market | B: Blueprint | How to position vs competitors, first 90-day plan |
+| MVP Scope | B: Blueprint | What to build first, what NOT to build, stack recommendations |
+
+#### V2 — Coming Soon
+Higher-value deliverables. Build after V1 proves traction.
+
+| Deliverable | Description | Why valuable |
+|-------------|-------------|--------------|
+| Unit Economics Model | CAC, LTV, payback period, burn rate projections | Founders need this for any investor conversation |
+| Investment Memo / One-Pager | Investor-ready summary with key metrics and thesis | Bridge between "I validated" and "I'm pitching" |
+| Founder/Team Fit Assessment | Evaluate team strengths, gaps, hiring priorities | Solo founders need to know what co-founder to seek |
+| Retention & Traction Analysis | Growth trajectory modeling, retention curves | For founders who already have early users |
+| Comparable Exits Analysis | Similar companies that exited, valuations, acquirers | Context for what success looks like in this space |
+| Revenue Projections | Monthly/annual projections with scenario modeling | Required for any serious funding conversation |
+
+#### B2B Extensions — Future
+Available when B2B layer launches.
+
+| Deliverable | Description |
+|-------------|-------------|
+| Portfolio Screening API | Bulk idea evaluation for accelerator intake |
+| Deal Flow Filter | VC-grade scoring and ranking |
+| IC Presentation Generator | Investment committee-ready memos |
+| Risk & Cap Table Analysis | For VCs doing due diligence |
+
 ### Technical Details (TBD)
 - **Model:** TBD (Opus for reasoning, potentially Gemini for deep research)
 - **Search budget:** 8-10+ per Phase A agent
@@ -168,19 +225,32 @@ Not a 30-page report. Founders don't read those. Each deliverable: **one page ma
 
 ## Pricing Model
 
-Three tiers mapping to the founder's journey:
+### B2C Tiers (from V6 pitch deck)
 
 | Tier | What | Price | Maps to |
 |------|------|-------|---------|
-| **Free** | 2-3 council evaluations | €0 | "Is this tool worth my time?" |
-| **Paid Validation** | Unlimited council + iteration mode | TBD (~€19/mo or €7-9/report) | "Should I build this?" |
-| **Paid Groundwork** | Full intelligence + blueprint package | TBD (~€49-99/report) | "How do I build this?" |
+| **Free** | 2 evaluations | €0 | "Is this tool worth my time?" |
+| **Basic** | 10 evaluations/month | €14/month | "Should I build this?" |
+| **Plus** | Unlimited evaluations + Groundwork | €30/month | "How do I build this?" |
+| **Overage** | Extra reports beyond tier | €2/report | Power users |
+
+### B2B Tiers (Phase 2 — after traction)
+
+| Tier | What | Price |
+|------|------|-------|
+| **Enterprise** | Unlimited portfolio screening + API | €50K-200K/year |
+
+### Why This Works
+- Free tier = lead gen, let them experience the verdict
+- €14/month = Netflix pricing, no-brainer for serious founders
+- Plus tier = power users who want Groundwork
+- 99% gross margin (LLM API costs only)
+- Overage ensures power users pay more, unit economics stay healthy
 
 ### Open Questions
-- Free cap: per month or lifetime?
-- Validation: subscription vs pay-per-report?
-- Groundwork: per-report or bundled?
-- Gate iteration mode behind paid?
+- Free cap: 2 total or 2/month?
+- Gate iteration mode behind Basic or Plus?
+- Groundwork: only in Plus, or available as one-time purchase?
 
 ---
 
