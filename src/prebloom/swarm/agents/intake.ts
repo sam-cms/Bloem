@@ -27,7 +27,7 @@ Founders rarely articulate their ideas well. Extract what they MEAN, not just wh
 - **Stage:** Raw idea / Has prototype / Has users / Has revenue
 
 ### Target Segments
-[If the idea serves multiple segments (e.g. both consumers AND businesses), list each segment on one line with who they are and why they'd use it. This is critical — downstream agents use this to build personas and GTM for ALL relevant segments, not just one.]
+[Assess whether this idea serves B2C, B2B, or both — even if the founder only mentions one. Many ideas have institutional/enterprise potential (API licensing, white-label, bulk pricing) that founders overlook. List EACH segment on one line: who they are, why they'd use it, and how they'd buy. This is critical — downstream agents use this to build personas and GTM for ALL relevant segments, not just one.]
 
 ### Value Proposition
 [One paragraph: What problem, for whom, why better than what exists?]

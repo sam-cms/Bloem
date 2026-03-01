@@ -21,7 +21,11 @@ import {
   CUSTOMER_PERSONAS_SEARCH_BUDGET,
 } from "./agents/customer-personas.js";
 import { GTM_PLAYBOOK_SYSTEM_PROMPT, GTM_PLAYBOOK_SEARCH_BUDGET } from "./agents/gtm-playbook.js";
-import { MVP_SCOPE_SYSTEM_PROMPT, MVP_SCOPE_SEARCH_BUDGET } from "./agents/mvp-scope.js";
+import {
+  MVP_SCOPE_SYSTEM_PROMPT,
+  MVP_SCOPE_SEARCH_BUDGET,
+  MVP_SCOPE_MODEL,
+} from "./agents/mvp-scope.js";
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_RETRIES = 3;
@@ -69,11 +73,15 @@ async function runGroundworkAgent(opts: {
   systemPrompt: string;
   userMessage: string;
   maxSearches: number;
+  model?: string;
 }): Promise<GroundworkAgentOutput> {
-  const { name, systemPrompt, userMessage, maxSearches } = opts;
+  const { name, systemPrompt, userMessage, maxSearches, model: modelOverride } = opts;
   const apiKey = getApiKey();
 
-  console.log(`🤖 [Groundwork] Running ${name} (model: ${MODEL}, searches: ${maxSearches})...`);
+  const agentModel = modelOverride || MODEL;
+  console.log(
+    `🤖 [Groundwork] Running ${name} (model: ${agentModel}, searches: ${maxSearches})...`,
+  );
   const started = Date.now();
 
   // Build tools array — only include web search if budget > 0
@@ -94,7 +102,7 @@ async function runGroundworkAgent(opts: {
   // Loop to handle pause_turn (API may pause long-running turns)
   while (true) {
     const requestBody: Record<string, unknown> = {
-      model: MODEL,
+      model: agentModel,
       max_tokens: 16000,
       system: [
         {
@@ -377,10 +385,11 @@ ${a3.analysis}
     await sleep(10_000);
 
     const b3 = await runGroundworkAgent({
-      name: "MVP Scope",
+      name: "Focus First",
       systemPrompt: MVP_SCOPE_SYSTEM_PROMPT,
-      userMessage: `${phaseBContext}\n\nDefine the MVP scope for this startup idea. What to build first, what to skip, tech stack, timeline, and success criteria.`,
+      userMessage: `${phaseBContext}\n\nAs a seasoned founder, tell this founder what to focus on first and what to skip. Be direct, warm, and specific.`,
       maxSearches: MVP_SCOPE_SEARCH_BUDGET,
+      model: MVP_SCOPE_MODEL,
     });
 
     result.customerPersonas = b1;

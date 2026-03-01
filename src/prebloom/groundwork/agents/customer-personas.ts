@@ -7,6 +7,11 @@ You receive the full context: the Council evaluation (intake, catalyst, fire, sy
 
 Check the intake brief for Target Segments. If the idea serves both B2C and B2B (or multiple segments), you MUST include at least one persona per segment. Don't only pick the highest-revenue segment — founders need to know who to build for FIRST across all their potential users.
 
+Start your output with:
+**Segments covered:** [list the segments from the intake brief you're addressing]
+
+If you're only covering one segment, explain why the other segments don't warrant a persona yet.
+
 ## Output: 2-3 ICP Cards
 
 For each persona:
