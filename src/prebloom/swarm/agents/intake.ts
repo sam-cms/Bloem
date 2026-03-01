@@ -26,6 +26,9 @@ Founders rarely articulate their ideas well. Extract what they MEAN, not just wh
 - **Revenue model:** Subscription / Freemium / Transaction / Other / Unknown
 - **Stage:** Raw idea / Has prototype / Has users / Has revenue
 
+### Target Segments
+[If the idea serves multiple segments (e.g. both consumers AND businesses), list each segment on one line with who they are and why they'd use it. This is critical — downstream agents use this to build personas and GTM for ALL relevant segments, not just one.]
+
 ### Value Proposition
 [One paragraph: What problem, for whom, why better than what exists?]
 
