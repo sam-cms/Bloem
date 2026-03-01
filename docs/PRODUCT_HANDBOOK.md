@@ -418,3 +418,76 @@ Native web search (`web_search_20250305`) is token-heavy — Claude pulls full H
 6. **Token Bucket Algorithm (Wikipedia)** — How continuous replenishment works vs fixed windows
    https://en.wikipedia.org/wiki/Token_bucket
 
+
+---
+
+## Cost Analysis — Verified Production Numbers (2026-03-01)
+
+> Based on actual full pipeline run, verified against Anthropic account balance
+
+### Per-Idea Cost (Council + Groundwork)
+
+| Component | Model | Cost | Time |
+|-----------|-------|------|------|
+| Council (Intake→Catalyst→Fire→Synthesis) | Opus 4.6 | ~$0.25 | ~75s |
+| Groundwork (6 agents, 9 searches) | Sonnet 4.6 | ~$0.91 | ~377s (6.3 min) |
+| **Total per idea** | | **~$1.16** | **~7.5 min** |
+
+### Groundwork Cost Breakdown
+
+| Category | Cost | % of Total |
+|----------|------|------------|
+| Input tokens (91,669 × $3/M) | $0.275 | 30% |
+| Output tokens (11,736 × $15/M) | $0.176 | 19% |
+| Web search surcharge (9 searches × ~$0.05) | $0.459 | 51% |
+| **Total Groundwork** | **$0.91** | 100% |
+
+**Key insight:** Web searches cost MORE than the tokens. Reducing searches = biggest cost lever.
+
+### Per-Agent Cost
+
+| Agent | Time | Input | Output | Searches | Cost |
+|-------|------|-------|--------|----------|------|
+| A1 Competitor Intel | 70s | 4,177 | 2,962 | 4 | $0.06 + search |
+| A2 Market Sizing | 56s | 4,184 | 2,192 | 3 | $0.05 + search |
+| A3 Gap Analysis | 36s | 8,400 | 1,438 | 0 | $0.05 |
+| B1 Customer Personas | 54s | 33,025 | 1,968 | 1 | $0.13 + search |
+| B2 GTM Playbook | 55s | 31,972 | 2,098 | 1 | $0.13 + search |
+| B3 MVP Scope | 31s | 9,911 | 1,078 | 0 | $0.05 |
+
+### Prompt Caching Impact
+
+| Metric | Without Cache | With Cache | Savings |
+|--------|--------------|------------|---------|
+| A1 input tokens counted | 81,746 | 4,177 | **95%** |
+| A1 cache hit | — | 37,945 tokens | — |
+| Rate limit impact | Hit 30k ITPM | No issues | Eliminated |
+
+### Pricing Viability
+
+| Plan | Price | Reports/mo | Revenue/report | COGS | Margin |
+|------|-------|-----------|----------------|------|--------|
+| Basic | $14/mo | 5 | $2.80 | $1.16 | **59%** |
+| Plus | $30/mo | 12 | $2.50 | $1.16 | **54%** |
+| One-shot | $5 | 1 | $5.00 | $1.16 | **77%** |
+| Enterprise | $200+/mo | bulk | $10+ | $1.16 | **88%+** |
+
+### Cost Optimization Levers (TODO)
+
+1. **Reduce searches** — A1 uses 4, A2 uses 3. Can we get same quality with 2-3 total? Saves ~$0.05-0.10/search
+2. **Prompt caching TTL** — extend to 1hr for batch runs (accelerator cohorts)
+3. **Tier 2 upgrade** ($40 deposit) — enables parallel execution, cuts time from 6.3 min to ~3 min
+4. **Dynamic filtering** (web_search_20260209) — needs code execution tool, could cut input tokens 50-70%
+5. **Sonnet for Council** — would cut Council from $0.25 to $0.05. Test quality first.
+6. **Batch pricing** — Anthropic offers volume discounts at scale
+
+### Tracking Requirements
+
+- [ ] Track actual cost per run in production (compare API-reported tokens vs balance delta)
+- [ ] Log web search count per agent — optimize high-search agents first
+- [ ] Monitor cache hit rates over time
+- [ ] A/B test search budgets (does 2 searches give same quality as 4 for A1?)
+
+---
+
+*Verified: 2026-03-01 01:00 CET — Full pipeline run, balance $9.49 → $8.58*
