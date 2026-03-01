@@ -4,6 +4,7 @@ import AudioVisualizer from './components/AudioVisualizer'
 import { AgentCouncilLoader } from './components/AgentCouncilLoader'
 import { IterateModal } from './components/IterateModal'
 import { LoginModal, UserMenu } from './components/Auth'
+import { GroundworkView } from './components/GroundworkView'
 import { useAuth } from './contexts/AuthContext'
 import { postJson, getJson, authFetch } from './lib/api'
 
@@ -406,9 +407,9 @@ export default function App() {
   if (state === 'report' && verdict) {
     return (
       <>
-        <ReportContainer 
-          verdict={verdict} 
-          idea={idea} 
+        <ReportContainer
+          verdict={verdict}
+          idea={idea}
           onReset={handleReset}
           view={reportView}
           onViewChange={setReportView}
@@ -416,6 +417,7 @@ export default function App() {
           canIterate={(verdict.version || 1) < 3}
           onSignInClick={() => setShowLoginModal(true)}
           isAuthenticated={!!user}
+          evaluationId={currentJobId}
         />
         {showIterateModal && (
           <IterateModal
@@ -641,9 +643,9 @@ function ProcessingView({ phase }: { phase: string }) {
   )
 }
 
-function ReportContainer({ 
-  verdict, 
-  idea, 
+function ReportContainer({
+  verdict,
+  idea,
   onReset,
   view,
   onViewChange,
@@ -651,7 +653,8 @@ function ReportContainer({
   canIterate,
   onSignInClick,
   isAuthenticated,
-}: { 
+  evaluationId,
+}: {
   verdict: Verdict
   idea: string
   onReset: () => void
@@ -661,6 +664,7 @@ function ReportContainer({
   canIterate: boolean
   onSignInClick: () => void
   isAuthenticated: boolean
+  evaluationId: string | null
 }) {
   const version = verdict.version || 1
 
@@ -748,7 +752,7 @@ function ReportContainer({
       {view === 'tldr' ? (
         <TLDRView verdict={verdict} onExpand={() => onViewChange('full')} />
       ) : view === 'groundwork' ? (
-        <GroundworkView />
+        <GroundworkView evaluationId={evaluationId} />
       ) : (
         <FullReportView verdict={verdict} idea={idea} onReset={onReset} />
       )}
@@ -880,57 +884,6 @@ function TLDRView({ verdict, onExpand }: { verdict: Verdict; onExpand: () => voi
         >
           [ View Full Report ]
         </button>
-      </div>
-    </main>
-  )
-}
-
-function GroundworkView() {
-  return (
-    <main className="max-w-4xl mx-auto px-6 py-16">
-      <div className="reveal-up">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 border border-[var(--accent)] flex items-center justify-center">
-              <div className="w-6 h-6 bg-[var(--accent)]" />
-            </div>
-          </div>
-          <h1 className="font-display text-4xl md:text-5xl text-white mb-4 tracking-tight">
-            GROUNDWORK
-          </h1>
-          <p className="text-[var(--fg-muted)] max-w-lg mx-auto">
-            Deep market research, competitive intelligence, and institutional-grade validation.
-          </p>
-        </div>
-
-        {/* Coming Soon Card */}
-        <div className="border border-[var(--border)] bg-[var(--bg-secondary)] p-12 text-center">
-          <p className="label text-[var(--accent)] mb-6">Coming in V2</p>
-          
-          <div className="grid md:grid-cols-2 gap-6 text-left mb-12">
-            <div className="p-6 border border-[var(--border)]">
-              <p className="text-white font-medium mb-2">Market Intelligence</p>
-              <p className="text-[var(--fg-muted)] text-sm">TAM/SAM/SOM analysis, market trends, growth projections, and timing signals.</p>
-            </div>
-            <div className="p-6 border border-[var(--border)]">
-              <p className="text-white font-medium mb-2">Competitive Landscape</p>
-              <p className="text-[var(--fg-muted)] text-sm">Deep competitor analysis, positioning maps, and differentiation opportunities.</p>
-            </div>
-            <div className="p-6 border border-[var(--border)]">
-              <p className="text-white font-medium mb-2">Investment Thesis</p>
-              <p className="text-[var(--fg-muted)] text-sm">VC-grade thesis construction with supporting evidence and risk factors.</p>
-            </div>
-            <div className="p-6 border border-[var(--border)]">
-              <p className="text-white font-medium mb-2">Validation Signals</p>
-              <p className="text-[var(--fg-muted)] text-sm">Customer discovery insights, demand indicators, and go-to-market readiness.</p>
-            </div>
-          </div>
-
-          <p className="text-[var(--fg-subtle)] text-sm">
-            Agentic deep research • Multi-source intelligence • Institutional-grade output
-          </p>
-        </div>
       </div>
     </main>
   )

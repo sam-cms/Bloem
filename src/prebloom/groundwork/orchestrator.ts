@@ -5,6 +5,7 @@ import type {
   GroundworkAgentOutput,
   GroundworkResult,
   GroundworkMetrics,
+  GroundworkEventCallback,
 } from "./types.js";
 
 import {
@@ -210,6 +211,45 @@ async function runGroundworkAgent(opts: {
 }
 
 /**
+ * Extract 2-3 key headlines from agent output using regex heuristics.
+ * Looks for bold text, numbers/stats, and competitor names.
+ */
+export function extractHeadlines(analysis: string): string[] {
+  const headlines: string[] = [];
+
+  // Pull bold text lines (e.g. **DimeADozen — $49/report**)
+  const boldMatches = analysis.match(/\*\*([^*]{10,120})\*\*/g);
+  if (boldMatches) {
+    for (const m of boldMatches.slice(0, 2)) {
+      const clean = m.replace(/\*\*/g, "").trim();
+      // Skip headings that are just section titles
+      if (clean.length > 15 && !clean.startsWith("#")) {
+        headlines.push(clean);
+      }
+    }
+  }
+
+  // Pull lines with key stats (numbers, $, %, M, B)
+  if (headlines.length < 3) {
+    const lines = analysis.split("\n");
+    for (const line of lines) {
+      if (headlines.length >= 3) break;
+      const trimmed = line.replace(/^[\s\-*#>]+/, "").trim();
+      if (
+        trimmed.length > 15 &&
+        trimmed.length < 150 &&
+        /(\$[\d,.]+[MBK]?|[\d,.]+%|\d+[MBK]\+?|TAM|SAM|SOM|CAGR)/i.test(trimmed) &&
+        !headlines.includes(trimmed)
+      ) {
+        headlines.push(trimmed.replace(/\*\*/g, ""));
+      }
+    }
+  }
+
+  return headlines.slice(0, 3);
+}
+
+/**
  * Build the council context into a user message for Groundwork agents.
  */
 function buildCouncilContextBlock(ctx: CouncilContext): string {
@@ -260,6 +300,7 @@ ${ctx.ideaText}
 export async function runGroundwork(
   evaluationId: string,
   councilContext: CouncilContext,
+  onEvent?: GroundworkEventCallback,
 ): Promise<GroundworkResult> {
   const id = crypto.randomUUID();
   const councilBlock = buildCouncilContextBlock(councilContext);
@@ -280,23 +321,43 @@ export async function runGroundwork(
 
     // A1 then A2 sequential (Tier 1 rate limit: 30k ITPM — parallel spikes past it)
     // TODO: Switch to Promise.all when org upgrades to Tier 2+ (80k+ ITPM)
+    onEvent?.({
+      type: "stage",
+      agent: "competitorIntelligence",
+      status: "running",
+      label: "Finding your competitors...",
+    });
     const a1 = await runGroundworkAgent({
       name: "Competitor Intelligence",
       systemPrompt: COMPETITOR_INTELLIGENCE_SYSTEM_PROMPT,
       userMessage: `${councilBlock}\n\nSearch for and profile the real competitors for this startup idea. Use web search to find actual pricing, funding data, and features.`,
       maxSearches: COMPETITOR_INTELLIGENCE_SEARCH_BUDGET,
     });
+    for (const h of extractHeadlines(a1.analysis)) {
+      onEvent?.({ type: "headline", agent: "competitorIntelligence", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "competitorIntelligence", status: "complete" });
 
     // Brief cooldown between agents
     console.log(`  ⏳ [Groundwork] Cooling down 10s before A2...`);
     await sleep(10_000);
 
+    onEvent?.({
+      type: "stage",
+      agent: "marketSizing",
+      status: "running",
+      label: "Sizing your market...",
+    });
     const a2 = await runGroundworkAgent({
       name: "Market Sizing",
       systemPrompt: MARKET_SIZING_SYSTEM_PROMPT,
       userMessage: `${councilBlock}\n\nCalculate the market size (TAM/SAM/SOM) for this startup idea. Use web search to find market reports, industry data, and growth rates.`,
       maxSearches: MARKET_SIZING_SEARCH_BUDGET,
     });
+    for (const h of extractHeadlines(a2.analysis)) {
+      onEvent?.({ type: "headline", agent: "marketSizing", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "marketSizing", status: "complete" });
 
     result.competitorIntelligence = a1;
     result.marketSizing = a2;
@@ -306,6 +367,12 @@ export async function runGroundwork(
     await sleep(15_000);
 
     // A3 runs with A1 + A2 outputs
+    onEvent?.({
+      type: "stage",
+      agent: "gapAnalysis",
+      status: "running",
+      label: "Hunting for gaps in the market...",
+    });
     const a3 = await runGroundworkAgent({
       name: "Gap Analysis",
       systemPrompt: GAP_ANALYSIS_SYSTEM_PROMPT,
@@ -327,6 +394,10 @@ ${a2.analysis}
 Synthesize the competitor intelligence and market sizing data above. Identify gaps and opportunities, and recommend the founder's best entry wedge.`,
       maxSearches: GAP_ANALYSIS_SEARCH_BUDGET,
     });
+    for (const h of extractHeadlines(a3.analysis)) {
+      onEvent?.({ type: "headline", agent: "gapAnalysis", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "gapAnalysis", status: "complete" });
 
     result.gapAnalysis = a3;
     const phaseADuration = Date.now() - phaseAStarted;
@@ -364,26 +435,52 @@ ${a3.analysis}
 
     // B1, B2, B3 sequential (Tier 1 rate limit safety)
     // TODO: Switch to Promise.all when org upgrades to Tier 2+
+    onEvent?.({
+      type: "stage",
+      agent: "customerPersonas",
+      status: "running",
+      label: "Building your customer personas...",
+    });
     const b1 = await runGroundworkAgent({
       name: "Customer Personas",
       systemPrompt: CUSTOMER_PERSONAS_SYSTEM_PROMPT,
       userMessage: `${phaseBContext}\n\nDefine 2-3 specific customer personas for this startup idea, based on the competitor research, market sizing, and gap analysis above.`,
       maxSearches: CUSTOMER_PERSONAS_SEARCH_BUDGET,
     });
+    for (const h of extractHeadlines(b1.analysis)) {
+      onEvent?.({ type: "headline", agent: "customerPersonas", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "customerPersonas", status: "complete" });
 
     console.log(`  ⏳ [Groundwork] Cooling down 10s before B2...`);
     await sleep(10_000);
 
+    onEvent?.({
+      type: "stage",
+      agent: "gtmPlaybook",
+      status: "running",
+      label: "Crafting your go-to-market playbook...",
+    });
     const b2 = await runGroundworkAgent({
       name: "GTM Playbook",
       systemPrompt: GTM_PLAYBOOK_SYSTEM_PROMPT,
       userMessage: `${phaseBContext}\n\nBuild a go-to-market playbook for this startup idea, based on the competitive landscape, market sizing, and opportunity gaps identified above.`,
       maxSearches: GTM_PLAYBOOK_SEARCH_BUDGET,
     });
+    for (const h of extractHeadlines(b2.analysis)) {
+      onEvent?.({ type: "headline", agent: "gtmPlaybook", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "gtmPlaybook", status: "complete" });
 
     console.log(`  ⏳ [Groundwork] Cooling down 10s before B3...`);
     await sleep(10_000);
 
+    onEvent?.({
+      type: "stage",
+      agent: "mvpScope",
+      status: "running",
+      label: "Figuring out what to build first...",
+    });
     const b3 = await runGroundworkAgent({
       name: "Focus First",
       systemPrompt: MVP_SCOPE_SYSTEM_PROMPT,
@@ -391,6 +488,10 @@ ${a3.analysis}
       maxSearches: MVP_SCOPE_SEARCH_BUDGET,
       model: MVP_SCOPE_MODEL,
     });
+    for (const h of extractHeadlines(b3.analysis)) {
+      onEvent?.({ type: "headline", agent: "mvpScope", text: h });
+    }
+    onEvent?.({ type: "stage", agent: "mvpScope", status: "complete" });
 
     result.customerPersonas = b1;
     result.gtmPlaybook = b2;
@@ -422,6 +523,8 @@ ${a3.analysis}
 
     result.metrics = metrics;
     result.status = "completed";
+
+    onEvent?.({ type: "complete", groundworkId: id, evaluationId });
 
     console.log(
       `\n✨ [Groundwork] Pipeline complete (${(totalDuration / 1000).toFixed(1)}s` +

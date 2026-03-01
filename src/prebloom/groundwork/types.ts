@@ -84,3 +84,11 @@ export interface GroundworkMetrics {
   totalOutputTokens: number;
   totalSearches: number;
 }
+
+// SSE event types for streaming Groundwork progress
+export type GroundworkSSEEvent =
+  | { type: "stage"; agent: string; status: "running" | "complete"; label?: string }
+  | { type: "headline"; agent: string; text: string }
+  | { type: "complete"; groundworkId: string; evaluationId: string };
+
+export type GroundworkEventCallback = (event: GroundworkSSEEvent) => void;

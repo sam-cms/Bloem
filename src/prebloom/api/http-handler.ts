@@ -14,7 +14,11 @@ import { listSkills } from "../skills/index.js";
 import { transcribeAudio, checkWhisperHealth } from "../audio/transcribe.js";
 import { runMarketResearch } from "../groundwork/market-research.js";
 import { runDeepResearch } from "../groundwork/deep-research.js";
-import type { MarketResearchResult, GroundworkResult } from "../groundwork/types.js";
+import type {
+  MarketResearchResult,
+  GroundworkResult,
+  GroundworkSSEEvent,
+} from "../groundwork/types.js";
 import { runGroundwork } from "../groundwork/orchestrator.js";
 import * as storage from "../storage/adapter.js";
 import { extractAuthContext, ensureUserProfile, type AuthContext } from "../auth/index.js";
@@ -731,6 +735,104 @@ export async function handlePrebloomHttpRequest(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Research failed";
       sendError(res, 500, message);
+      return true;
+    }
+  }
+
+  // POST /prebloom/groundwork/run — SSE stream for Groundwork pipeline
+  if (url.pathname === "/prebloom/groundwork/run" && req.method === "POST") {
+    try {
+      const body = (await readJsonBody(req)) as { evaluationId?: string };
+      const evaluationId = body?.evaluationId;
+      if (!evaluationId) {
+        sendError(res, 400, "evaluationId is required");
+        return true;
+      }
+
+      // Check if already running or complete
+      const existing = inMemoryGroundwork.get(evaluationId);
+      if (existing?.status === "running") {
+        sendError(res, 409, "Groundwork already running for this evaluation");
+        return true;
+      }
+
+      // Load evaluation
+      const evaluation = await storage.getEvaluation(evaluationId);
+      if (!evaluation) {
+        sendError(res, 404, "Evaluation not found");
+        return true;
+      }
+      if (evaluation.status !== "completed") {
+        sendError(res, 400, "Evaluation must be completed before running Groundwork");
+        return true;
+      }
+
+      // Build council context
+      const councilContext = {
+        intake: evaluation.agentIntake || "",
+        catalyst: evaluation.agentCatalyst || "",
+        fire: evaluation.agentFire || "",
+        synthesis: evaluation.agentSynthesis || "",
+        ideaText: evaluation.inputData
+          ? `Problem: ${(evaluation.inputData as Record<string, string>).problem || ""}\nSolution: ${(evaluation.inputData as Record<string, string>).solution || ""}\nTarget Market: ${(evaluation.inputData as Record<string, string>).targetMarket || ""}\nBusiness Model: ${(evaluation.inputData as Record<string, string>).businessModel || ""}`
+          : undefined,
+      };
+
+      // Set up SSE
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.flushHeaders?.();
+
+      const writeSSE = (event: GroundworkSSEEvent) => {
+        try {
+          res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          // Client disconnected
+        }
+      };
+
+      // Create initial running result
+      const runningResult: GroundworkResult = {
+        id: crypto.randomUUID(),
+        evaluationId,
+        createdAt: new Date().toISOString(),
+        status: "running",
+      };
+      inMemoryGroundwork.set(evaluationId, runningResult);
+
+      // Run pipeline with SSE events
+      runGroundwork(evaluationId, councilContext, writeSSE)
+        .then((result) => {
+          inMemoryGroundwork.set(evaluationId, result);
+          res.end();
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : "Unknown error";
+          console.error(`[Groundwork] SSE pipeline failed for ${evaluationId}: ${message}`);
+          inMemoryGroundwork.set(evaluationId, {
+            ...runningResult,
+            status: "failed",
+            error: message,
+          });
+          try {
+            res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
+          } catch {
+            // Client disconnected
+          }
+          res.end();
+        });
+
+      // Handle client disconnect
+      req.on("close", () => {
+        // Pipeline continues in background even if client disconnects
+      });
+
+      return true;
+    } catch (error) {
+      sendError(res, 500, "Internal server error");
       return true;
     }
   }
