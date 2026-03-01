@@ -247,10 +247,16 @@ Available when B2B layer launches.
 - 99% gross margin (LLM API costs only)
 - Overage ensures power users pay more, unit economics stay healthy
 
+### Groundwork Monetization (Updated March 1, 2026)
+- Groundwork is NOT included in Free or Basic tiers
+- **Plus subscribers** get Groundwork included
+- **Pay-per-run:** Basic subscribers (and potentially Free users) can purchase individual Groundwork runs without upgrading subscription
+- This creates a clean upgrade ladder: Free → Basic (more Council) → Plus (Council + Groundwork) with pay-per-run as an on-ramp
+
 ### Open Questions
-- Free cap: 2 total or 2/month?
+- Free cap: 2 total or 2/month? → 2 per month (confirmed)
 - Gate iteration mode behind Basic or Plus?
-- Groundwork: only in Plus, or available as one-time purchase?
+- Pay-per-run pricing for Groundwork? (cost is ~$0.55-0.70/run)
 
 ---
 
